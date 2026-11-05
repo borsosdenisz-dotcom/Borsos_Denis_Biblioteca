@@ -1,20 +1,43 @@
-@model IEnumerable<BookRow>
-
-@{
-    ViewData["Title"] = "Catalog";
-}
-
+@model IEnumerable<BookListItem>
+@{ ViewData["Title"] = "Catalog"; }
 <h1>Catalog</h1>
-<p><a asp-action="Create">Create New</a></p>
+<p><a asp-action="Create">Carte nouă</a></p>
+
+<form asp-action="Index" method="get" class="mb-3">
+    Caută după titlu:
+    <input type="text" name="searchString" value="@ViewData["CurrentFilter"]" />
+    <button type="submit" class="btn btn-primary btn-sm">Caută</button>
+    <a asp-action="Index">Toată lista</a>
+</form>
 
 <table class="table">
     <thead>
-    <tr><th>Titlu</th><th>Autor</th><th>Comenzi</th></tr>
+        <tr>
+            <th><a asp-action="Index" asp-route-sortOrder="@ViewData["TitleSortParm"]"
+                   asp-route-searchString="@ViewData["CurrentFilter"]">Titlu</a></th>
+            <th>Autor</th>
+            <th>Gen</th>
+            <th><a asp-action="Index" asp-route-sortOrder="@ViewData["PriceSortParm"]"
+                   asp-route-searchString="@ViewData["CurrentFilter"]">Preț</a></th>
+            <th>Comenzi</th>
+            <th></th>
+        </tr>
     </thead>
     <tbody>
-    @foreach (var r in Model)
+    @foreach (var item in Model)
     {
-        <tr><td>@r.Title</td><td>@r.Author</td><td>@r.Orders</td></tr>
+        <tr>
+            <td>@item.Title</td>
+            <td>@item.Author</td>
+            <td>@item.Genre</td>
+            <td>@item.Price.ToString("0.00")</td>
+            <td>@item.Orders</td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
+                <a asp-action="Details" asp-route-id="@item.ID">Details</a> |
+                <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+            </td>
+        </tr>
     }
     </tbody>
 </table>

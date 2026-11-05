@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Lab1_MVC.Models;
 using Lab1_MVC.Data;
-using System.Diagnostics;
 
 namespace Lab1_MVC.Controllers
 {
@@ -23,17 +22,33 @@ namespace Lab1_MVC.Controllers
         }
 
         // GET: Books
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string? sortOrder, string? searchString)
         {
-            var sw = Stopwatch.StartNew();
+            ViewData["TitleSortParm"] = sortOrder == "title" ? "title_desc" : "title";
+            ViewData["PriceSortParm"] = sortOrder == "price" ? "price_desc" : "price";
+            ViewData["CurrentFilter"] = searchString;
 
-            var rows = await _context.Book
-                .Select(b => new BookRow(b.Title,
-                    b.Author!.FirstName + " " + b.Author.LastName,
-                    b.Orders.Count))
+            var books = _context.Book.AsQueryable();
+
+            if (!string.IsNullOrEmpty(searchString))
+                books = books.Where(b => b.Title.Contains(searchString));
+
+            books = sortOrder switch
+            {
+                "title"      => books.OrderBy(b => b.Title),
+                "title_desc" => books.OrderByDescending(b => b.Title),
+                "price"      => books.OrderBy(b => b.Price),
+                "price_desc" => books.OrderByDescending(b => b.Price),
+                _            => books.OrderByDescending(b => b.Price)   // [V2] B1: preț descrescător
+            };
+
+            var rows = await books
+                .Select(b => new BookListItem(b.ID, b.Title,
+                    b.Author != null ? b.Author.FirstName + " " + b.Author.LastName : "",
+                    b.Genre != null ? b.Genre.Name : "",
+                    b.Price, b.Orders.Count))
                 .ToListAsync();
 
-            _logger.LogInformation("Index: {Ms} ms", sw.ElapsedMilliseconds);
             return View(rows);
         }
 
