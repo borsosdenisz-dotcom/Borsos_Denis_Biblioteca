@@ -23,7 +23,8 @@ namespace Lab1_MVC.Controllers
 
         // GET: Books
         public async Task<IActionResult> Index(string? sortOrder, string? currentFilter,
-                                               string? searchString, int? pageNumber)
+                                               string? searchString, int? yearFrom, int? yearTo,
+                                               int? pageNumber)
         {
             ViewData["CurrentSort"] = sortOrder;
             ViewData["TitleSortParm"] = sortOrder == "title" ? "title_desc" : "title";
@@ -33,11 +34,19 @@ namespace Lab1_MVC.Controllers
             if (searchString != null) pageNumber = 1;
             else searchString = currentFilter;
             ViewData["CurrentFilter"] = searchString;
+            // [V3] A2: filtrul după an (de la – până la). Formularul de filtrare nu trimite pageNumber,
+            // deci orice schimbare a filtrului pornește de la pagina 1.
+            ViewData["YearFrom"] = yearFrom;
+            ViewData["YearTo"] = yearTo;
 
             var books = _context.Book.AsQueryable();
 
             if (!string.IsNullOrEmpty(searchString))
                 books = books.Where(b => b.Title.Contains(searchString));
+            if (yearFrom != null)
+                books = books.Where(b => b.Year >= yearFrom);
+            if (yearTo != null)
+                books = books.Where(b => b.Year <= yearTo);
 
             books = sortOrder switch
             {
@@ -57,6 +66,9 @@ namespace Lab1_MVC.Controllers
                     b.Author != null ? b.Author.FirstName + " " + b.Author.LastName : "",
                     b.Genre != null ? b.Genre.Name : "",
                     b.Price, b.Orders.Count));
+
+            if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("SQL catalog:\n{Sql}", rows.ToQueryString());
 
             const int pageSize = 7;   // [V1] A2: 7 cărți pe pagină
             return View(await PaginatedList<BookListItem>.CreateAsync(rows, pageNumber ?? 1, pageSize));

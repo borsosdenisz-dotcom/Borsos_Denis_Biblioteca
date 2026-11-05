@@ -3,9 +3,16 @@
 <h1>Catalog</h1>
 <p><a asp-action="Create">Carte nouă</a></p>
 
+@* Formularul nu trimite pageNumber: orice schimbare a căutării/filtrului începe de la pagina 1.
+   sortOrder se păstrează printr-un câmp ascuns. *@
 <form asp-action="Index" method="get" class="mb-3">
+    <input type="hidden" name="sortOrder" value="@ViewData["CurrentSort"]" />
     Caută după titlu:
     <input type="text" name="searchString" value="@ViewData["CurrentFilter"]" />
+    An de la:
+    <input type="number" name="yearFrom" value="@ViewData["YearFrom"]" style="width:6em" />
+    An până la:
+    <input type="number" name="yearTo" value="@ViewData["YearTo"]" style="width:6em" />
     <button type="submit" class="btn btn-primary btn-sm">Caută</button>
     <a asp-action="Index">Toată lista</a>
 </form>
@@ -14,12 +21,18 @@
     <thead>
         <tr>
             <th><a asp-action="Index" asp-route-sortOrder="@ViewData["TitleSortParm"]"
-                   asp-route-currentFilter="@ViewData["CurrentFilter"]">Titlu</a></th>
+                   asp-route-currentFilter="@ViewData["CurrentFilter"]"
+                   asp-route-yearFrom="@ViewData["YearFrom"]"
+                   asp-route-yearTo="@ViewData["YearTo"]">Titlu</a></th>
             <th><a asp-action="Index" asp-route-sortOrder="@ViewData["AuthorSortParm"]"
-                   asp-route-currentFilter="@ViewData["CurrentFilter"]">Autor</a></th>
+                   asp-route-currentFilter="@ViewData["CurrentFilter"]"
+                   asp-route-yearFrom="@ViewData["YearFrom"]"
+                   asp-route-yearTo="@ViewData["YearTo"]">Autor</a></th>
             <th>Gen</th>
             <th><a asp-action="Index" asp-route-sortOrder="@ViewData["PriceSortParm"]"
-                   asp-route-currentFilter="@ViewData["CurrentFilter"]">Preț</a></th>
+                   asp-route-currentFilter="@ViewData["CurrentFilter"]"
+                   asp-route-yearFrom="@ViewData["YearFrom"]"
+                   asp-route-yearTo="@ViewData["YearTo"]">Preț</a></th>
             <th>Comenzi</th>
             <th></th>
         </tr>
@@ -50,9 +63,13 @@
 <a asp-action="Index" asp-route-sortOrder="@ViewData["CurrentSort"]"
    asp-route-pageNumber="@(Model.PageIndex - 1)"
    asp-route-currentFilter="@ViewData["CurrentFilter"]"
+   asp-route-yearFrom="@ViewData["YearFrom"]"
+   asp-route-yearTo="@ViewData["YearTo"]"
    class="btn btn-outline-primary @prevDisabled">Înapoi</a>
 <a asp-action="Index" asp-route-sortOrder="@ViewData["CurrentSort"]"
    asp-route-pageNumber="@(Model.PageIndex + 1)"
    asp-route-currentFilter="@ViewData["CurrentFilter"]"
+   asp-route-yearFrom="@ViewData["YearFrom"]"
+   asp-route-yearTo="@ViewData["YearTo"]"
    class="btn btn-outline-primary @nextDisabled">Înainte</a>
 <span class="ms-2">Pagina @Model.PageIndex din @Model.TotalPages</span>
