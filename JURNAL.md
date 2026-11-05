@@ -92,4 +92,42 @@ ORDER BY "b"."Title"
 
 ## S4 · Folosirea AI
 
-(se completează la S4)
+* **Instrumente folosite:** Claude Code (agent în VS Code), care a rulat comenzile `dotnet`, `git` și `gh` și a editat fișierele. Eu am dat cerințele și datele variantei și am verificat rezultatele (paginile cu `curl`, SQL-ul din log, valorile direct în bază).
+* **La ce pași:** la toți: A1–A5 (pornire, scaffolding cu `dotnet aspnet-codegenerator`, proiecție, paginare, detalii), S1–S3 și redactarea jurnalului. Fiecare pas a fost compilat, rulat și verificat, apoi am făcut commit separat.
+* **Un exemplu de cerere trimisă:**
+
+> S3: pe Books/Index, două câmpuri „An de la” / „An până la”, combinate cu căutarea și sortarea. Toate link-urile de sortare și butoanele Înapoi/Înainte trebuie să păstreze TOȚI parametrii activi (sortOrder, currentFilter, yearFrom, yearTo). Schimbarea filtrului resetează pagina la 1. Găsește și testează un scenariu cu cel puțin 2 pagini (≥ 8 rezultate).
+
+* **O situație în care am corectat sau respins un răspuns AI:**
+
+  * Ce a propus AI-ul / care era eroarea: pentru sortarea după autor (S2), prima variantă scrisă a fost `OrderBy(b => b.Author!.FullName)`. La rulare, `/Books?sortOrder=author` a dat HTTP 500 cu `InvalidOperationException: ... Translation of member 'FullName' on entity type 'Author' failed`. Mesajul EF propune „switch to client evaluation ... 'AsEnumerable' ... 'ToList'”. Asta ar fi fost a doua greșeală: sortarea s-ar fi făcut în memorie, după încărcarea întregului catalog, și ar fi stricat paginarea în SQL (`LIMIT/OFFSET`).
+  * Cum mi-am dat seama că e greșit sau ineficient: din codul 500 și din excepția din log. `FullName` e o proprietate calculată în C#, fără coloană în bază. Am respins sugestia cu `ToList()` pentru că cerința e ca sortarea și paginarea să rămână în SQL. După corectare am verificat în log că apare `ORDER BY "a"."LastName", "a"."FirstName"` înainte de `LIMIT @p OFFSET @p`.
+  * Codul inițial:
+
+```csharp
+"author"      => books.OrderBy(b => b.Author!.FullName),
+"author_desc" => books.OrderByDescending(b => b.Author!.FullName),
+```
+
+* Codul final:
+
+```csharp
+"author"      => books.OrderBy(b => b.Author!.LastName).ThenBy(b => b.Author!.FirstName),
+"author_desc" => books.OrderByDescending(b => b.Author!.LastName).ThenByDescending(b => b.Author!.FirstName),
+```
+
+* **A doua greșeală reală a AI-ului (S3):** voia să scrie SQL-ul în log cu `ToQueryString()`, dar a editat fișierul printr-un script Python, iar `\n` din șir a ajuns în cod ca o linie nouă reală. `dotnet build` a dat `error CS1010: Newline in constant` și `CS1002: ; expected` la `BooksController.cs(71)`. Cod inițial (generat greșit):
+
+```csharp
+_logger.LogDebug("SQL catalog:
+{Sql}", rows.ToQueryString());
+```
+
+Cod final:
+
+```csharp
+if (_logger.IsEnabled(LogLevel.Debug))
+    _logger.LogDebug("SQL catalog:\n{Sql}", rows.ToQueryString());
+```
+
+* **O presupunere care nu s-a confirmat:** mă așteptam ca SQLite să nu poată face `ORDER BY` / `AVG` pe `decimal` (eroare cunoscută la versiuni mai vechi de EF Core). Cu EF Core 10 nu a apărut nicio excepție. Sortarea se traduce în `ORDER BY "b"."Price" COLLATE EF_DECIMAL DESC`, iar media în `SELECT ef_avg("b"."Price")`, deci ambele rămân în SQL. Nu a fost nevoie de `HasConversion<double>()` sau de migrație, așa că nu am schimbat modelul.
