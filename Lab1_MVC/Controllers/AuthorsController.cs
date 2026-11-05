@@ -34,13 +34,35 @@ namespace Lab1_MVC.Controllers
             }
 
             var author = await _context.Author
+                .AsNoTracking()
                 .FirstOrDefaultAsync(m => m.ID == id);
             if (author == null)
             {
                 return NotFound();
             }
 
-            return View(author);
+            var authorBooks = _context.Book.Where(b => b.AuthorID == id);
+
+            var books = await authorBooks
+                .OrderBy(b => b.Title)
+                .Select(b => new AuthorBookRow(b.ID, b.Title,
+                    b.Genre != null ? b.Genre.Name : "",
+                    b.Price, b.Orders.Count))
+                .ToListAsync();
+
+            // numărul total de comenzi pentru toate cărțile autorului (COUNT în SQL)
+            var totalOrders = await _context.Order.CountAsync(o => o.Book.AuthorID == id);
+
+            // [V4] prețul mediu, calculat în SQL (AVG)
+            var averagePrice = await authorBooks.AverageAsync(b => (decimal?)b.Price);
+
+            return View(new AuthorDetailsViewModel
+            {
+                Author = author,
+                Books = books,
+                TotalOrders = totalOrders,
+                AveragePrice = (double?)averagePrice
+            });
         }
 
         // GET: Authors/Create

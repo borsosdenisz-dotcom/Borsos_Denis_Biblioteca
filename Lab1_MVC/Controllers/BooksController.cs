@@ -28,6 +28,7 @@ namespace Lab1_MVC.Controllers
             ViewData["CurrentSort"] = sortOrder;
             ViewData["TitleSortParm"] = sortOrder == "title" ? "title_desc" : "title";
             ViewData["PriceSortParm"] = sortOrder == "price" ? "price_desc" : "price";
+            ViewData["AuthorSortParm"] = sortOrder == "author" ? "author_desc" : "author";
 
             if (searchString != null) pageNumber = 1;
             else searchString = currentFilter;
@@ -44,6 +45,10 @@ namespace Lab1_MVC.Controllers
                 "title_desc" => books.OrderByDescending(b => b.Title),
                 "price"      => books.OrderBy(b => b.Price),
                 "price_desc" => books.OrderByDescending(b => b.Price),
+                // FullName e [NotMapped] (proprietate C# calculată) -> nu se poate traduce în SQL;
+                // sortăm după coloanele reale LastName, apoi FirstName.
+                "author"      => books.OrderBy(b => b.Author!.LastName).ThenBy(b => b.Author!.FirstName),
+                "author_desc" => books.OrderByDescending(b => b.Author!.LastName).ThenByDescending(b => b.Author!.FirstName),
                 _            => books.OrderByDescending(b => b.Price)   // [V2] B1: preț descrescător
             };
 

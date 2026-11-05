@@ -17,7 +17,45 @@
 
 ## S2 · Pagina unui autor și sortarea după autor
 
-(se completează la S2)
+* Indicatorul V4 (prețul mediu al cărților autorului) este calculat cu interogarea:
+
+```csharp
+var authorBooks = _context.Book.Where(b => b.AuthorID == id);
+var averagePrice = await authorBooks.AverageAsync(b => (decimal?)b.Price);
+```
+
+SQL-ul real generat de EF Core (din logul `Microsoft.EntityFrameworkCore.Database.Command`):
+
+```sql
+SELECT ef_avg("b"."Price")
+FROM "Book" AS "b"
+WHERE "b"."AuthorID" = @id
+```
+
+`Price` e `decimal`, stocat în SQLite ca TEXT. EF Core 10 nu folosește `AVG` simplu, ci funcția `ef_avg`, pe care o înregistrează pe conexiunea SQLite și care calculează media cu precizie zecimală. Calculul rămâne în motorul bazei de date: în C# vine o singură valoare, nu lista de cărți. Verificare: pentru Liviu Rebreanu (id 4) pagina afișează 29.50, iar `SELECT avg(Price) FROM Book WHERE AuthorID=4` dă tot 29.5 (Ion 20, Pădurea spânzuraților 39).
+
+Totalul comenzilor se calculează tot în SQL:
+
+```sql
+SELECT COUNT(*)
+FROM "Order" AS "o"
+INNER JOIN "Book" AS "b" ON "o"."BookID" = "b"."ID"
+WHERE "b"."AuthorID" = @id
+```
+
+* De ce `OrderBy(b => b.Author.FullName)` aruncă o excepție? `FullName` e o proprietate C# calculată (`public string FullName => $"{FirstName} {LastName}";`), fără setter. EF o tratează ca nemapată (ca și cum ar avea `[NotMapped]`), deci nu are coloană în tabela `Author`. EF trebuie să traducă tot `OrderBy` în SQL și nu are în ce coloană să traducă `FullName`. Excepția reală, obținută pe `/Books?sortOrder=author`:
+
+```
+System.InvalidOperationException: The LINQ expression 'DbSet<Book>()
+    .LeftJoin(inner: DbSet<Author>(), ...)
+    .OrderBy(b => b.Inner.FullName)' could not be translated. Additional information:
+Translation of member 'FullName' on entity type 'Author' failed. This commonly occurs
+when the specified member is unmapped. Either rewrite the query in a form that can be
+translated, or switch to client evaluation explicitly by inserting a call to 'AsEnumerable',
+'AsAsyncEnumerable', 'ToList', or 'ToListAsync'.
+```
+
+* Cum am rezolvat: am sortat după coloanele reale, `OrderBy(b => b.Author!.LastName).ThenBy(b => b.Author!.FirstName)` (și `OrderByDescending`/`ThenByDescending` pentru `author_desc`). În SQL se generează `ORDER BY "a"."LastName", "a"."FirstName"`, înainte de `LIMIT/OFFSET`. Nu am folosit `AsEnumerable()`/`ToList()`, cum sugerează mesajul, pentru că sortarea și paginarea s-ar fi făcut atunci în memorie, după ce s-ar fi încărcat tot catalogul.
 
 ## S3 · Filtrul variantei mele (V3)
 

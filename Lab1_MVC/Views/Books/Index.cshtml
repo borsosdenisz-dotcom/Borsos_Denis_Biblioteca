@@ -15,7 +15,8 @@
         <tr>
             <th><a asp-action="Index" asp-route-sortOrder="@ViewData["TitleSortParm"]"
                    asp-route-currentFilter="@ViewData["CurrentFilter"]">Titlu</a></th>
-            <th>Autor</th>
+            <th><a asp-action="Index" asp-route-sortOrder="@ViewData["AuthorSortParm"]"
+                   asp-route-currentFilter="@ViewData["CurrentFilter"]">Autor</a></th>
             <th>Gen</th>
             <th><a asp-action="Index" asp-route-sortOrder="@ViewData["PriceSortParm"]"
                    asp-route-currentFilter="@ViewData["CurrentFilter"]">Preț</a></th>
