@@ -1,4 +1,4 @@
-@model IEnumerable<BookListItem>
+@model PaginatedList<BookListItem>
 @{ ViewData["Title"] = "Catalog"; }
 <h1>Catalog</h1>
 <p><a asp-action="Create">Carte nouă</a></p>
@@ -14,11 +14,11 @@
     <thead>
         <tr>
             <th><a asp-action="Index" asp-route-sortOrder="@ViewData["TitleSortParm"]"
-                   asp-route-searchString="@ViewData["CurrentFilter"]">Titlu</a></th>
+                   asp-route-currentFilter="@ViewData["CurrentFilter"]">Titlu</a></th>
             <th>Autor</th>
             <th>Gen</th>
             <th><a asp-action="Index" asp-route-sortOrder="@ViewData["PriceSortParm"]"
-                   asp-route-searchString="@ViewData["CurrentFilter"]">Preț</a></th>
+                   asp-route-currentFilter="@ViewData["CurrentFilter"]">Preț</a></th>
             <th>Comenzi</th>
             <th></th>
         </tr>
@@ -41,3 +41,17 @@
     }
     </tbody>
 </table>
+
+@{
+    var prevDisabled = Model.HasPreviousPage ? "" : "disabled";
+    var nextDisabled = Model.HasNextPage ? "" : "disabled";
+}
+<a asp-action="Index" asp-route-sortOrder="@ViewData["CurrentSort"]"
+   asp-route-pageNumber="@(Model.PageIndex - 1)"
+   asp-route-currentFilter="@ViewData["CurrentFilter"]"
+   class="btn btn-outline-primary @prevDisabled">Înapoi</a>
+<a asp-action="Index" asp-route-sortOrder="@ViewData["CurrentSort"]"
+   asp-route-pageNumber="@(Model.PageIndex + 1)"
+   asp-route-currentFilter="@ViewData["CurrentFilter"]"
+   class="btn btn-outline-primary @nextDisabled">Înainte</a>
+<span class="ms-2">Pagina @Model.PageIndex din @Model.TotalPages</span>
