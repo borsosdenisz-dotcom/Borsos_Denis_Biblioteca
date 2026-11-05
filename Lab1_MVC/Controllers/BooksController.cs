@@ -66,7 +66,10 @@ namespace Lab1_MVC.Controllers
             }
 
             var book = await _context.Book
+                .Include(b => b.Author)
                 .Include(b => b.Genre)
+                .Include(b => b.Orders).ThenInclude(o => o.Customer)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(m => m.ID == id);
             if (book == null)
             {
