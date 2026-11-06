@@ -131,3 +131,101 @@ if (_logger.IsEnabled(LogLevel.Debug))
 ```
 
 * **O presupunere care nu s-a confirmat:** mă așteptam ca SQLite să nu poată face `ORDER BY` / `AVG` pe `decimal` (eroare cunoscută la versiuni mai vechi de EF Core). Cu EF Core 10 nu a apărut nicio excepție. Sortarea se traduce în `ORDER BY "b"."Price" COLLATE EF_DECIMAL DESC`, iar media în `SELECT ef_avg("b"."Price")`, deci ambele rămân în SQL. Nu a fost nevoie de `HasConversion<double>()` sau de migrație, așa că nu am schimbat modelul.
+
+
+## Laboratorul 5 · Borsos Denis · 121200052 · A2 · B1
+
+Varianta: **A2** → pragul pentru cold start = **10 evaluări**; **B1** → al doilea grafic din dashboard = **media evaluărilor pe autor**.
+
+### A1 · Evaluările în baza de date
+
+* Am importat `Lab1_MVC/Data/book-ratings.csv` **o singură dată**, prin formularul din `/Admin` (POST multipart pe `/Admin/ImportRatings`, cu tokenul antiforgery). Mesajul afișat: **„Au fost importate 6599 evaluări.”**
+* Verificare în bază: `SELECT COUNT(*) FROM Rating` = **6599** (cât rânduri de date are CSV-ul), **300** de cititori distincți, note între 1 și 5. Perechi (ReaderId, BookID) duplicate: **0**.
+
+### A2 · Reantrenarea din aplicație
+
+* `Services/RecommenderTrainer` (înregistrat `AddScoped`) citește evaluările din tabelul `Rating` și suprascrie `MLModels/BookRecommender.zip`.
+* Mesajul după „Reantrenează”: **„Model reantrenat pe 6599 evaluări. RMSE = 0.71”** (la o nouă apăsare: RMSE = 0.70). Valoarea variază puțin între rulări, chiar cu `seed: 1`, pentru că Matrix Factorization se antrenează pe mai multe fire de execuție.
+* **`/Recommendations?userId=5` a mers fără repornirea aplicației.** În log apare `Reloading file 'MLModels/BookRecommender.zip' completed` (efectul lui `watchForChanges: true`), iar scorurile s-au schimbat față de modelul vechi (de exemplu, „Domain-Driven Design” 4.58 → 4.50, „C# in Depth” 4.11 → 3.93).
+
+### A3 · API de recomandări cu cold start
+
+* `GET /api/v2/readers/{id}/recommendations?top=N` (implicit 5, între 1 și 20). Pragul de cold start este `const int minRatings = 10; // pragul variantei A2 = 10`.
+* **Cititorul 5** (are 23 de cărți evaluate, care sunt excluse) primește recomandări **personalizate**, prezise de model, toate cu `"fallback": false`: Designing Data-Intensive Applications (4.08), Fata cu un tatuaj de dragon (3.87), Moromeții (2.93), Numele vântului (2.92), Pădurea spânzuraților (2.67). Cu `?top=3` primește doar primele 3.
+* **Cititorul 999** nu există în date, deci modelul întoarce `NaN` pentru toate cărțile. Se aplică cold start-ul și primește aceeași listă pe care ar primi-o orice cititor nou: **cele mai bine evaluate cărți care au ≥ 10 evaluări**, cu `"fallback": true`, iar scorul este **media reală a notelor**, nu o predicție: Câinele din Baskerville (4.14, 179 evaluări), Domain-Driven Design (3.81), Fata cu un tatuaj de dragon (3.81), Dune (3.74), Istoria critică a românilor (3.72). Am verificat mediile cu un `GROUP BY BookID HAVING COUNT(*) >= 10` direct în bază și sunt identice.
+
+### A4 · Clasificarea genului din descriere
+
+* Proiect nou `GenreClassifier.Training` (în soluție), cu `book-descriptions.csv`: 1270 de exemple, 9 genuri; Poezie (112) și Nuvelă (110) sunt clasele cele mai mici, celelalte au 142–152 de exemple.
+* **MicroAccuracy = 75.1%, MacroAccuracy = 74.9%.**
+* **De ce diferă:** Micro este media pe toate exemplele din test (fiecare carte contează la fel), iar Macro este media acurateților pe clase (fiecare gen contează la fel). Clasele mici Poezie (recall 0.64) și Nuvelă (0.625) au cea mai slabă acuratețe și trag Macro în jos. La mine diferența e foarte mică (0.2 puncte), pentru că setul de test e aproape echilibrat, iar o clasă mare, Programare, are și ea un recall slab (0.62), ceea ce scade în aceeași măsură și Micro.
+* **Matricea de confuzie, cele mai dese confuzii:**
+  * **Poezie ↔ Nuvelă**: 6 poezii prezise ca nuvele și 5 nuvele prezise ca poezii, deci 11 în total, cea mai mare confuzie;
+  * **Programare ↔ SF**: 5 + 4 = 9;
+  * **Programare → Istorie și eseu**: 6;
+  * **Clasic universal → Roman românesc**: 6.
+
+  Este logic: poezia și nuvela sunt ambele genuri literare scurte, cu vocabular asemănător; descrierile de programare și cele SF folosesc aceleași cuvinte („cod”, „hacker”, „rețea”, „testarea automată”, chiar și în descrieri SF din CSV); iar clasicii universali și romanele românești sunt descriși la fel (romane, personaje, epocă).
+* **Dune** („Pe o planetă deșertică, controlul unei resurse rare decide soarta unui imperiu.”) → **SF, 74% încredere**. A ghicit corect.
+* **Descrierea ambiguă** („un detectiv pe o stație spațială”) → **SF, 79% încredere**. Contrar așteptării, încrederea nu a scăzut. Modelul a ales SF cu încredere mare, probabil pentru că în CSV „stați…” apare în 34 de descrieri SF și „spațial” în 19, în timp ce „detectiv” apare în doar 11 descrieri (toate Polițist). Cuvintele „spațiale” cântăresc mai mult decât „detectiv”. Asta arată că „încrederea” este doar scorul maxim al softmax-ului, nu o măsură a ambiguității reale.
+* Integrare: `MLModels/GenreClassifier.zip` (Copy if newer), `Models/BookText` și `Models/GenrePrediction`, al doilea `PredictionEnginePool`, acțiunea `POST /Books/SuggestGenre` (JSON; descrierea goală dă 400) și butonul „Sugerează genul” în `Books/Create`. View-ul `Create` nu avea câmpul Description, așa că l-am adăugat (textarea) și am inclus `Description` în `[Bind]`. Scriptul este pus în secțiunea `@section Scripts`, care exista deja.
+
+### S1 · Jurnalul recomandărilor
+
+* Entitatea `RecommendationLog` (ID, ReaderId, CreatedAt în UTC, BookIds ca text, de exemplu „30,27,5”) și migrația `RecommendationLog`. La fiecare apel al API-ului de recomandări se salvează un rând, **inclusiv la cold start** (de exemplu, cititorul 999 → „25,32,27,16,35”).
+* Pagina `/Admin/Log` (link „Jurnal recomandări” în `/Admin`) conține un tabel paginat cu `PaginatedList` (10 pe pagină), un filtru după cititor (`readerId`), un interval de date „de la”–„până la” (ziua „până la” este inclusă complet) și sortare după dată (implicit descrescător, cu click pe antet devine crescător). Filtrele, sortarea și paginarea se fac în SQL. Link-urile de sortare și paginare păstrează toți parametrii; formularul de filtrare nu trimite `pageNumber`, deci orice schimbare de filtru pornește de la pagina 1.
+* Test: 23 de apeluri → 3 pagini; `readerId=5` → 6 rânduri; `readerId=999` → 3; intervalul de azi → toate; `to=ieri` / `from=mâine` → 0.
+
+### S2 · Dashboard
+
+* Pagina `/Admin/Dashboard` (link în `/Admin`), cu Chart.js din CDN. Carduri: **6.599 evaluări, 300 de cititori distincți, media generală 3,25**. Grafic cu bare pentru distribuția notelor: 1★ = 365, 2★ = 1179, 3★ = 2361, 4★ = 1854, 5★ = 840. Al doilea grafic, cu bare orizontale: **media evaluărilor pe autor** pentru 36 de autori, de la Arthur Conan Doyle (4,14) la Robert C. Martin (2,26). Sub grafice există și un tabel cu aceleași date.
+* Toate valorile coincid cu interogări directe în SQLite (`COUNT`, `COUNT(DISTINCT ReaderId)`, `AVG`, `GROUP BY Stars`, `GROUP BY` pe autor).
+* Interogarea reală pentru media pe autor (capturată cu `ToQueryString()` și confirmată în logul EF `Executed DbCommand`):
+
+```sql
+SELECT "s"."Key", AVG(CAST("s"."Stars" AS REAL)), COUNT(*)
+FROM (
+    SELECT "r"."Stars", COALESCE("a"."FirstName", '') || ' ' || COALESCE("a"."LastName", '') AS "Key"
+    FROM "Rating" AS "r"
+    INNER JOIN "Book" AS "b" ON "r"."BookID" = "b"."ID"
+    LEFT JOIN "Author" AS "a" ON "b"."AuthorID" = "a"."ID"
+    WHERE "a"."ID" IS NOT NULL
+) AS "s"
+GROUP BY "s"."Key"
+ORDER BY AVG(CAST("s"."Stars" AS REAL)) DESC
+```
+
+### Folosirea AI (Laboratorul 5)
+
+* **Instrument:** Claude Code (agent în VS Code), la toți pașii: A1–A4, S1, S2 și redactarea jurnalului. Fiecare pas a fost compilat (`dotnet build`), aplicația a fost pornită și verificată cu `curl -k` (inclusiv formularele, cu token antiforgery și cookie), cifrele au fost comparate cu interogări directe în bază, apoi am făcut un commit separat și push.
+* **Un exemplu de cerere:**
+
+> S2: pagina Admin/Dashboard cu Chart.js (CDN): carduri cu numărul de evaluări, numărul de cititori distincți și media generală; grafic cu bare pentru distribuția notelor 1–5; al doilea grafic, cu bare, pentru MEDIA EVALUĂRILOR PE AUTOR (B1): GroupBy pe autor (nume complet din FirstName + LastName, nu FullName), media Stars, ordonat descrescător, calculat în SQL.
+
+* **Problemă reală (S2):** prima variantă a interogării pe autor proiecta direct în record-ul `AuthorAverage` și apoi ordona după `x.Average`. `/Admin/Dashboard` a dat **HTTP 500**: `InvalidOperationException: The LINQ expression ... .OrderByDescending(e0 => e0.Average) could not be translated`. EF nu poate traduce în SQL un membru al unui obiect creat prin constructor. Sugestia din mesaj (`AsEnumerable`/`ToList`) ar fi mutat gruparea în memorie, deci am respins-o. Am făcut o proiecție anonimă, ordonarea în SQL, apoi conversia la record.
+
+  Cod inițial:
+
+```csharp
+.GroupBy(r => r.Book.Author!.FirstName + " " + r.Book.Author!.LastName)
+.Select(g => new AuthorAverage(g.Key, g.Average(r => (double)r.Stars), g.Count()))
+.OrderByDescending(x => x.Average);
+```
+
+  Cod final:
+
+```csharp
+.GroupBy(r => r.Book.Author!.FirstName + " " + r.Book.Author!.LastName)
+.Select(g => new { Author = g.Key, Average = g.Average(r => (double)r.Stars), Count = g.Count() })
+.OrderByDescending(x => x.Average)
+.Select(x => new AuthorAverage(x.Author, x.Average, x.Count));
+```
+
+* **O a doua problemă (A2):** la prima apăsare pe „Reantrenează”, mesajul din `TempData` a fost consumat de cererea GET, dar nu a putut fi afișat în consolă din cauza codificării (cp1252 nu are caracterul „ă”). Modelul se reantrenase corect (log: `Reloading file ... completed`), dar mesajul s-a pierdut. Am reantrenat încă o dată, cu `PYTHONIOENCODING=utf-8`, ca să citesc RMSE-ul.
+
+### Abateri / decizii proprii
+
+* `/api/v2/readers/{id}/recommendations` exclude cărțile deja evaluate (conform cerinței). Pagina MVC veche `/Recommendations` (din Î2) nu le exclude, așa că listele pot diferi; am lăsat-o neschimbată.
+* `book-descriptions.csv` a fost mutat în proiectul `GenreClassifier.Training` (Copy if newer). `GenreClassifier.zip` este salvat atât în proiectul consolă, cât și copiat în `Lab1_MVC/MLModels`.
+* Baza SQLite este urmărită în git (ca în laboratoarele anterioare), deci evaluările importate, jurnalul de recomandări și modelul reantrenat sunt incluse în commit-uri.
+* În dashboard, gruparea pe autor se face după numele complet (FirstName + LastName), așa cum se cere. Doi autori cu nume identic ar fi comasați; în datele actuale nu există astfel de cazuri (36 de grupuri = 36 de autori cu evaluări).
