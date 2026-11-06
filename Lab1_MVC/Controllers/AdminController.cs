@@ -6,7 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Lab1_MVC.Controllers;
 
-public class AdminController(LibraryContext db, RecommenderTrainer trainer) : Controller
+public class AdminController(LibraryContext db, RecommenderTrainer trainer,
+                             ILogger<AdminController> logger) : Controller
 {
     public async Task<IActionResult> Index()
     {
@@ -79,5 +80,39 @@ public class AdminController(LibraryContext db, RecommenderTrainer trainer) : Co
 
         const int pageSize = 10;
         return View(await PaginatedList<RecommendationLog>.CreateAsync(logs, Math.Max(pageNumber ?? 1, 1), pageSize));
+    }
+
+    // S2: dashboard - cardurile și ambele grafice sunt agregate în SQL (IQueryable), nu în memorie.
+    public async Task<IActionResult> Dashboard()
+    {
+        var vm = new DashboardViewModel
+        {
+            RatingCount = await db.Rating.CountAsync(),
+            ReaderCount = await db.Rating.Select(r => r.ReaderId).Distinct().CountAsync(),
+            AverageStars = await db.Rating.Select(r => (double?)r.Stars).AverageAsync()
+        };
+
+        var dist = await db.Rating
+            .GroupBy(r => r.Stars)
+            .Select(g => new StarCount(g.Key, g.Count()))
+            .ToListAsync();
+        // completăm notele lipsă cu 0 (doar 5 valori, pentru axa 1–5)
+        vm.Distribution = Enumerable.Range(1, 5)
+            .Select(s => dist.FirstOrDefault(d => d.Stars == s) ?? new StarCount(s, 0))
+            .ToList();
+
+        // [V] B1: media evaluărilor pe autor. Numele complet se construiește din FirstName + LastName
+        // (FullName e proprietate C# nemapată și nu se poate traduce în SQL).
+        var perAuthor = db.Rating
+            .Where(r => r.Book.Author != null)
+            .GroupBy(r => r.Book.Author!.FirstName + " " + r.Book.Author!.LastName)
+            // proiecție anonimă: EF nu poate ordona după un membru al unui record creat prin constructor
+            .Select(g => new { Author = g.Key, Average = g.Average(r => (double)r.Stars), Count = g.Count() })
+            .OrderByDescending(x => x.Average)
+            .Select(x => new AuthorAverage(x.Author, x.Average, x.Count));
+        logger.LogInformation("SQL media pe autor:\n{Sql}", perAuthor.ToQueryString());
+        vm.AuthorAverages = await perAuthor.ToListAsync();
+
+        return View(vm);
     }
 }

@@ -1,0 +1,121 @@
+@model Lab1_MVC.Models.DashboardViewModel
+
+@{
+    ViewData["Title"] = "Dashboard";
+    var ci = System.Globalization.CultureInfo.GetCultureInfo("ro-RO");
+}
+
+<h1>Dashboard evaluări</h1>
+<p><a asp-action="Index">&larr; Administrare</a></p>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card"><div class="card-body">
+            <div class="text-muted small">Evaluări</div>
+            <div class="fs-2 fw-semibold" id="card-ratings">@Model.RatingCount.ToString("N0", ci)</div>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card"><div class="card-body">
+            <div class="text-muted small">Cititori distincți</div>
+            <div class="fs-2 fw-semibold" id="card-readers">@Model.ReaderCount.ToString("N0", ci)</div>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card"><div class="card-body">
+            <div class="text-muted small">Media generală (stele)</div>
+            <div class="fs-2 fw-semibold" id="card-avg">@(Model.AverageStars?.ToString("0.00", ci) ?? "–")</div>
+        </div></div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <h5>Distribuția notelor (număr de evaluări pe stele)</h5>
+        <div style="height:320px"><canvas id="starsChart" role="img" aria-label="Distribuția notelor 1–5"></canvas></div>
+    </div>
+    <div class="col-lg-7">
+        <h5>Media evaluărilor pe autor</h5>
+        <div style="height:@(Math.Max(320, Model.AuthorAverages.Count * 22))px"><canvas id="authorChart" role="img" aria-label="Media evaluărilor pe autor"></canvas></div>
+    </div>
+</div>
+
+<details class="mt-4">
+    <summary>Tabel cu datele graficelor</summary>
+    <div class="row mt-2">
+        <div class="col-md-4">
+            <table class="table table-sm" id="starsTable">
+                <thead><tr><th>Stele</th><th class="text-end">Evaluări</th></tr></thead>
+                <tbody>
+                @foreach (var d in Model.Distribution)
+                {
+                    <tr><td>@d.Stars</td><td class="text-end">@d.Count</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <div class="col-md-8">
+            <table class="table table-sm" id="authorTable">
+                <thead><tr><th>Autor</th><th class="text-end">Media</th><th class="text-end">Evaluări</th></tr></thead>
+                <tbody>
+                @foreach (var a in Model.AuthorAverages)
+                {
+                    <tr><td>@a.Author</td><td class="text-end">@a.Average.ToString("0.000", ci)</td><td class="text-end">@a.Count</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</details>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        const series = "#2a78d6";
+        const grid = "rgba(0,0,0,0.06)";
+        Chart.defaults.color = "#52514e";
+
+        const dist = @Json.Serialize(Model.Distribution);
+        new Chart(document.getElementById("starsChart"), {
+            type: "bar",
+            data: {
+                labels: dist.map(d => d.stars + " ★"),
+                datasets: [{ label: "Evaluări", data: dist.map(d => d.count),
+                             backgroundColor: series, borderRadius: 4, borderSkipped: "start", maxBarThickness: 48 }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, grid: { color: grid }, title: { display: true, text: "Număr de evaluări" } }
+                }
+            }
+        });
+
+        const authors = @Json.Serialize(Model.AuthorAverages);
+        new Chart(document.getElementById("authorChart"), {
+            type: "bar",
+            data: {
+                labels: authors.map(a => a.author),
+                datasets: [{ label: "Media", data: authors.map(a => a.average),
+                             backgroundColor: series, borderRadius: 4, borderSkipped: "start", maxBarThickness: 16 }]
+            },
+            options: {
+                indexAxis: "y",
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: c => {
+                        const a = authors[c.dataIndex];
+                        return "Media " + a.average.toFixed(2) + " din " + a.count + " evaluări";
+                    } } }
+                },
+                scales: {
+                    x: { min: 0, max: 5, grid: { color: grid }, title: { display: true, text: "Media (stele)" } },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
+    </script>
+}
