@@ -36,6 +36,49 @@ builder.Services.AddChatClient(chat);
 var app = builder.Build();
 app.MapLibraryApi();
 
+app.MapGet("/api/v2/readers/{id:int}/recommendations",
+    async (int id, int? top, LibraryContext db,
+           PredictionEnginePool<BookRating, BookRatingPrediction> pool) =>
+{
+    var n = Math.Clamp(top ?? 5, 1, 20);
+
+    var rated = await db.Rating.Where(r => r.ReaderId == id)
+        .Select(r => r.BookID).ToListAsync();
+
+    var candidates = await db.Book.AsNoTracking()
+        .Where(b => !rated.Contains(b.ID))
+        .Select(b => new { b.ID, b.Title }).ToListAsync();
+
+    var recs = candidates
+        .Select(b => new RecommendationDto(b.ID, b.Title,
+            pool.Predict("BookRecommender",
+                new BookRating { UserId = id, BookId = b.ID }).Score, false))
+        .Where(r => !float.IsNaN(r.Score))
+        .OrderByDescending(r => r.Score)
+        .Take(n).ToList();
+
+    if (recs.Count == 0) // cold start: cele mai bine evaluate cărți (minimum P evaluări, P = pragul variantei A)
+    {
+        const int minRatings = 10; // pragul variantei A2 = 10
+        var popular = await db.Rating
+            .GroupBy(r => r.BookID)
+            .Where(g => g.Count() >= minRatings)
+            .Select(g => new { BookID = g.Key, Avg = g.Average(r => r.Stars) })
+            .OrderByDescending(x => x.Avg).Take(n)
+            .ToListAsync();
+
+        var ids = popular.Select(p => p.BookID).ToList();
+        var titles = await db.Book.Where(b => ids.Contains(b.ID))
+            .ToDictionaryAsync(b => b.ID, b => b.Title);
+
+        recs = popular.Select(p => new RecommendationDto(
+            p.BookID, titles[p.BookID], (float)p.Avg, true)).ToList();
+    }
+
+    return TypedResults.Ok(recs);
+})
+.WithTags("Recomandări");
+
 app.MapPost("/api/v2/books/{id:int}/pitch", async (int id, LibraryContext db, IChatClient ai) =>
 {
     var b = await db.Book.Include(x => x.Author).Include(x => x.Genre)
