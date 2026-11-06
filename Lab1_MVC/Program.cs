@@ -79,6 +79,15 @@ app.MapGet("/api/v2/readers/{id:int}/recommendations",
             p.BookID, titles[p.BookID], (float)p.Avg, true)).ToList();
     }
 
+    // S1: jurnalul recomandărilor - salvăm fiecare apel, inclusiv cold start
+    db.RecommendationLog.Add(new RecommendationLog
+    {
+        ReaderId = id,
+        CreatedAt = DateTime.UtcNow,
+        BookIds = string.Join(",", recs.Select(r => r.BookId))
+    });
+    await db.SaveChangesAsync();
+
     return TypedResults.Ok(recs);
 })
 .WithTags("Recomandări");

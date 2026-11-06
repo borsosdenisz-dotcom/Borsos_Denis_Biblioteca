@@ -190,6 +190,27 @@ namespace Lab1_MVC.Migrations
                     b.ToTable("Rating");
                 });
 
+            modelBuilder.Entity("Lab1_MVC.Models.RecommendationLog", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BookIds")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ReaderId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ID");
+
+                    b.ToTable("RecommendationLog");
+                });
+
             modelBuilder.Entity("BookPublisher", b =>
                 {
                     b.HasOne("Lab1_MVC.Models.Book", null)
