@@ -27,6 +27,9 @@
         <None Update="MLModels/BookRecommender.zip">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
+        <None Update="MLModels/GenreClassifier.zip">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
 </Project>

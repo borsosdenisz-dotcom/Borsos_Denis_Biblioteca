@@ -23,6 +23,10 @@ builder.Services
         filePath: "MLModels/BookRecommender.zip",
         watchForChanges: true);
 
+builder.Services.AddPredictionEnginePool<BookText, GenrePrediction>()
+    .FromFile(modelName: "GenreClassifier",
+        filePath: "MLModels/GenreClassifier.zip", watchForChanges: true);
+
 builder.Services.AddScoped<RecommenderTrainer>();
 
 builder.Services.AddValidation();

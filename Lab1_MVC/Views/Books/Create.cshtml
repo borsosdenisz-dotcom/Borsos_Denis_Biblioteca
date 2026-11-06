@@ -27,6 +27,13 @@
                 <span asp-validation-for="Price" class="text-danger"></span>
             </div>
             <div class="form-group">
+                <label asp-for="Description" class="control-label"></label>
+                <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                <span asp-validation-for="Description" class="text-danger"></span>
+                <button type="button" id="suggest" class="btn btn-outline-secondary btn-sm mt-1">Sugerează genul</button>
+                <span id="suggestion" class="ms-2 text-muted"></span>
+            </div>
+            <div class="form-group">
                 <label asp-for="GenreID" class="control-label"></label>
                 <select asp-for="GenreID" class ="form-control" asp-items="ViewBag.GenreID"></select>
             </div>
@@ -43,4 +50,18 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        document.getElementById("suggest").addEventListener("click", async () => {
+            const description = document.getElementById("Description").value;
+            const r = await fetch("@Url.Action("SuggestGenre")", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ description })
+            });
+            if (!r.ok) { document.getElementById("suggestion").textContent = "Scrieți o descriere."; return; }
+            const d = await r.json();
+            document.getElementById("suggestion").textContent =
+                d.genre + " (" + Math.round(d.confidence * 100) + "% încredere)";
+        });
+    </script>
 }

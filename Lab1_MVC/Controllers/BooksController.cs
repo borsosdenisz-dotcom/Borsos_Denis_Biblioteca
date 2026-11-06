@@ -7,9 +7,12 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Lab1_MVC.Models;
 using Lab1_MVC.Data;
+using Microsoft.Extensions.ML;
 
 namespace Lab1_MVC.Controllers
 {
+    public record SuggestGenreRequest(string Description);
+
     public class BooksController : Controller
     {
         private readonly LibraryContext _context;
@@ -109,7 +112,7 @@ namespace Lab1_MVC.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("ID,Title,AuthorID,Price,GenreID")] Book book)
+        public async Task<IActionResult> Create([Bind("ID,Title,AuthorID,Price,GenreID,Description")] Book book)
         {
             if (ModelState.IsValid)
             {
@@ -120,6 +123,18 @@ namespace Lab1_MVC.Controllers
             ViewData["AuthorID"] = new SelectList(_context.Author.OrderBy(a => a.LastName), "ID", "FullName", book.AuthorID);
             ViewData["GenreID"]  = new SelectList(_context.Genre.OrderBy(g => g.Name), "ID", "Name", book.GenreID);
             return View(book);
+        }
+
+        // POST: Books/SuggestGenre
+        [HttpPost]
+        public IActionResult SuggestGenre([FromBody] SuggestGenreRequest req,
+            [FromServices] PredictionEnginePool<BookText, GenrePrediction> pool)
+        {
+            if (string.IsNullOrWhiteSpace(req.Description))
+                return BadRequest("Descrierea este goală.");
+
+            var p = pool.Predict("GenreClassifier", new BookText { Description = req.Description });
+            return Json(new { genre = p.Genre, confidence = p.Score.Max() });
         }
 
         // GET: Books/Edit/5
