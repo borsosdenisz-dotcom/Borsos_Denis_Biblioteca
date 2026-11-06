@@ -4,6 +4,7 @@ using Lab1_MVC.Data;
 using Microsoft.Extensions.ML;
 using Lab1_MVC.Models;
 using Lab1_MVC.Api;
+using Lab1_MVC.Services;
 using Scalar.AspNetCore;
 using Microsoft.Extensions.AI;
 using OpenAI;
@@ -21,6 +22,8 @@ builder.Services
     .FromFile(modelName: "BookRecommender",
         filePath: "MLModels/BookRecommender.zip",
         watchForChanges: true);
+
+builder.Services.AddScoped<RecommenderTrainer>();
 
 builder.Services.AddValidation();
 builder.Services.AddOpenApi();
