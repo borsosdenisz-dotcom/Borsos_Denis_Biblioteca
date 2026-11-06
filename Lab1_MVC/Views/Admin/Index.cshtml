@@ -1,0 +1,13 @@
+@{
+    ViewData["Title"] = "Administrare";
+}
+
+<h1>Administrare</h1>
+
+@if (TempData["Msg"] is string msg) { <div class="alert alert-info">@msg</div> }
+<p>Evaluări în baza de date: <strong>@ViewBag.Ratings</strong></p>
+
+<form asp-action="ImportRatings" method="post" enctype="multipart/form-data" class="mb-4">
+    <input type="file" name="file" accept=".csv" />
+    <button type="submit" class="btn btn-primary btn-sm">Importă evaluări</button>
+</form>

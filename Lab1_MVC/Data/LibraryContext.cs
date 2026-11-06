@@ -11,4 +11,5 @@ public class LibraryContext(DbContextOptions<LibraryContext> options) : DbContex
     public DbSet<Publisher> Publisher { get; set; } = default!;
     public DbSet<Customer> Customer { get; set; } = default!;
     public DbSet<Order> Order { get; set; } = default!;
+    public DbSet<Rating> Rating { get; set; } = default!;
 }

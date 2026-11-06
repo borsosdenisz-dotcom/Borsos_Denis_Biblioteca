@@ -15,7 +15,7 @@ namespace Lab1_MVC.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "8.0.33");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
             modelBuilder.Entity("BookPublisher", b =>
                 {
@@ -165,6 +165,31 @@ namespace Lab1_MVC.Migrations
                     b.ToTable("Publisher");
                 });
 
+            modelBuilder.Entity("Lab1_MVC.Models.Rating", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BookID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ReaderId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Stars")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("BookID");
+
+                    b.ToTable("Rating");
+                });
+
             modelBuilder.Entity("BookPublisher", b =>
                 {
                     b.HasOne("Lab1_MVC.Models.Book", null)
@@ -212,6 +237,17 @@ namespace Lab1_MVC.Migrations
                     b.Navigation("Book");
 
                     b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("Lab1_MVC.Models.Rating", b =>
+                {
+                    b.HasOne("Lab1_MVC.Models.Book", "Book")
+                        .WithMany()
+                        .HasForeignKey("BookID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Book");
                 });
 
             modelBuilder.Entity("Lab1_MVC.Models.Author", b =>
