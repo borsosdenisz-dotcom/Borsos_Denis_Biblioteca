@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+option csharp_namespace = "BibliotecaGrpc";
+
+package biblioteca;
+
+// Serviciul de recomandări al Bibliotecii 
+service Recommender {
+ 
+  rpc Recommend (RecommendRequest) returns (RecommendReply);
+
+
+  rpc StreamRecommendations (RecommendRequest) returns (stream BookScore);
+
+
+  rpc RateBooks (stream RatingInput) returns (RateSummary);
+}
+
+message RecommendRequest {
+  int32 reader_id = 1;
+  int32 top = 2;          // 0 (nespecificat) = 5 recomandări
+}
+
+message BookScore {
+  int32 book_id = 1;
+  string title = 2;
+  float score = 3;
+  bool fallback = 4;      // true (cold start)
+}
+
+message RecommendReply {
+  repeated BookScore books = 1;
+}
+
+message RatingInput {
+  int32 reader_id = 1;
+  int32 book_id = 2;
+  int32 stars = 3;
+}
+
+message RateSummary {
+  int32 saved = 1;
+  int32 rejected = 2;
+  double average = 3;
+}
