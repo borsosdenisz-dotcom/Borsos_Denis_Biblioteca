@@ -8,6 +8,7 @@
   </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="Grpc.AspNetCore" Version="2.85.0" />
       <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.14" />
@@ -30,6 +31,10 @@
         <None Update="MLModels/GenreClassifier.zip">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Protobuf Include="Protos\recommender.proto" GrpcServices="Server" />
     </ItemGroup>
 
 </Project>
