@@ -251,3 +251,38 @@ Numele tool-urilor (`search_books` …) vin din `[McpServerTool(Name = "...")]`,
   (în consolă diacriticele apar escapate, de exemplu `românesc`).
 * **search_books cu „xyz”:** `IsError:` gol și conținutul `[]`. Nu este o eroare: interogarea a mers, doar că nu a găsit nicio carte.
 * **Ce informații despre cod are clientul?** Doar numele tool-ului, descrierea și schema JSON a parametrilor (nume, tip, descriere, valoare implicită, ce e obligatoriu), plus rezultatul apelului. Nu vede interogarea LINQ, SQL-ul, `LibraryContext` sau `RecommendationService`. Implementarea rămâne pe server.
+
+### Misiunea 2 · Agentul Bibliotecii (llama3.2, câte o rulare pe întrebare)
+
+Verificarea s-a făcut în baza de date și cu `GET /api/v2/readers/{id}/recommendations`, care folosește același `RecommendationService` ca tool-ul `recommend_books`. Datele reale: Rebreanu are Ion (ID 4, 1920, 20 lei, Roman românesc) și Pădurea spânzuraților (ID 7, 1922, 39 lei). Cea mai scumpă carte este Domain-Driven Design (ID 32, 220 lei).
+
+| # | Întrebarea | Tool-uri apelate | Răspunsul (pe scurt) | Corect? |
+|---|---|---|---|---|
+| 1 | Ce cărți de Rebreanu are biblioteca? | `search_books(query=Rebreanu)` | „Ion” (1920) și „Pădurea spânzurilor lui boysilor” (1922), plus o notă inventată despre „traducerea” titlului | **Parțial.** Tool-ul a întors datele corecte, dar modelul a stricat al doilea titlu și a adăugat o explicație fără sens. |
+| 2 | Spune-mi mai multe despre romanul Ion: anul, genul și prețul. | `search_books(query=Ion)` | Liviu Rebreanu, 1920, „face parte din colecția «Amintiri din copilărie»” | **Nu.** Anul e corect, dar genul (Roman românesc) și prețul (20 lei) lipsesc, deși erau în rezultatul tool-ului. „Amintiri din copilărie” e inventat (e o carte a lui Creangă). Nu a apelat `get_book_details`. |
+| 3 | Ce cărți îi recomanzi cititorului 5? | `recommend_books(readerId=5, top=5)` | Designing Data-Intensive Applications 4,076 · Fata cu un tatuaj de dragon 3,873 · „Moromeii” 2,929 · Numele vântului 2,925 · „În spațiu, la distanță” 2,669 | **Aproape.** Cărțile și scorurile corespund cu RecommendationService, dar „Moromeii” (Moromeții) e scris greșit, iar a 5-a („Pădurea spânzuraților”, scor 2,6686697) a primit un titlu inventat. |
+| 4 | Ce cărți îi recomanzi unui cititor nou, cu ID-ul 999? | `recommend_books(readerId=999, top=5)` | Câinele din Baskerville 4,14 · Domain-Driven Design 3,81 · Fata cu un tatuaj de dragon 3,81 · Dune 3,74 · Istoria critică a românilor 3,72 | **Da.** Este exact lista de rezervă (cold start, Fallback = true), cu aceleași scoruri. Nu a precizat însă că sunt recomandări de rezervă. |
+| 5 | Care este cea mai scumpă carte din catalog? | `search_books(query=carte scumpa)` | „Nu am găsit nicio informație despre prețurile cărților în catalog.” | **Nu.** Răspunsul corect ar fi Domain-Driven Design, 220 lei. Nu există un tool pentru sortare după preț, așa că modelul a încercat o căutare după text, care a întors `[]`. Cel puțin nu a inventat o carte. |
+| 6 | Care este capitala Franței? | `search_books(query=Paris)` | „Paris este capitala Franței.” | **Da**, dar apelul la tool e inutil: întrebarea nu are legătură cu biblioteca, iar răspunsul vine din cunoștințele modelului. |
+
+Liniile exacte din consolă:
+
+```
+Q1    [tool] search_books(query=Rebreanu)
+      Asistent: Biblioteca FSEGA dispune de următoarele cărți ale lui Liviu Rebreanu:
+      1.  "Ion" (1920)
+      2.  "Pădurea spânzurilor lui boysilor" (1922)
+      Spre note, "Pădurea spânzurilor lui boysilor" nu este o traducere corectă a titlului "Pădurea spânzurilorilor lui băieți" cum ar fi tradus.
+Q2    [tool] search_books(query=Ion)
+      Asistent: Romanul "Ion" este un roman scris de Liviu Rebreanu, publicat în 1920. Acesta face parte din colecția "Amintiri din copilărie" și este unul dintre cele mai cunoscute opere ale lui Rebreanu.
+Q3    [tool] recommend_books(readerId=5, top=5)
+Q4    [tool] recommend_books(readerId=999, top=5)
+Q5    [tool] search_books(query=carte scumpa)
+      Asistent: Nu am găsit nicio informație despre prețurile cărților în catalog.
+Q6    [tool] search_books(query=Paris)
+      Asistent: Paris este capitala Fran╚¢ei.
+```
+
+În consola Windows, „ț” din „Franței” a fost afișat greșit (`╚¢`), din cauza codificării consolei.
+
+**Concluzie:** alegerea tool-ului și a argumentelor a fost corectă la 1, 3 și 4. Greșelile apar în textul generat de modelul mic, care deformează titluri și adaugă detalii inventate, și acolo unde lipsește un tool potrivit (întrebarea 5).
