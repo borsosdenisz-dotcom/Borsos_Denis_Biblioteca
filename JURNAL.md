@@ -229,3 +229,25 @@ ORDER BY AVG(CAST("s"."Stars" AS REAL)) DESC
 * `book-descriptions.csv` a fost mutat în proiectul `GenreClassifier.Training` (Copy if newer). `GenreClassifier.zip` este salvat atât în proiectul consolă, cât și copiat în `Lab1_MVC/MLModels`.
 * Baza SQLite este urmărită în git (ca în laboratoarele anterioare), deci evaluările importate, jurnalul de recomandări și modelul reantrenat sunt incluse în commit-uri.
 * În dashboard, gruparea pe autor se face după numele complet (FirstName + LastName), așa cum se cere. Doi autori cu nume identic ar fi comasați; în datele actuale nu există astfel de cazuri (36 de grupuri = 36 de autori cu evaluări).
+
+
+## Întâlnirea 7 · Biblioteca devine server MCP + agent cu Ollama
+
+Portul https al aplicației: **7105** (`launchSettings.json`, profilul https). Endpoint MCP: `https://localhost:7105/mcp`. Pachete: `ModelContextProtocol.AspNetCore` 2.4.0 (server), `ModelContextProtocol` 2.4.0 + `Microsoft.Extensions.AI` / `Microsoft.Extensions.AI.OpenAI` 10.11.0 (Biblioteca.Agent). Modelul local: `llama3.2` (Ollama).
+
+### Misiunea 1 · Partea C · Ce vede clientul
+
+| Tool | Parametri (nume : tip) | De unde vine descrierea afișată? |
+|---|---|---|
+| search_books | `query : string` (obligatoriu) | din atributul `[Description]` de pe metoda `SearchBooks`; descrierea parametrului vine din `[Description]` de pe `query` |
+| get_book_details | `bookId : integer` (obligatoriu) | din `[Description]` de pe metoda `GetBookDetails` și de pe parametrul `bookId` |
+| recommend_books | `readerId : integer` (obligatoriu), `top : integer` (opțional, `"default": 5`) | din `[Description]` de pe metoda `RecommendBooks` și de pe parametrii `readerId`, `top` |
+
+Numele tool-urilor (`search_books` …) vin din `[McpServerTool(Name = "...")]`, nu din numele metodelor C#.
+
+* **`LibraryContext db` apare în schema JSON?** Nu. Nici `RecommendationService recs`, nici `CancellationToken ct`. SDK-ul MCP recunoaște parametrii care sunt servicii înregistrate în DI (și `CancellationToken`) și îi completează pe server la fiecare apel. În schemă apar doar parametrii pe care trebuie să-i trimită clientul.
+* **search_books cu „Rebreanu”:** `IsError:` gol (null, deci nu e eroare). Rezultatul este un text JSON, o listă de obiecte `BookInfo` serializate cu nume camelCase:
+  `[{"id":4,"title":"Ion","author":"Liviu Rebreanu","genre":"Roman românesc","year":1920,"price":20.0},{"id":7,"title":"Pădurea spânzuraților","author":"Liviu Rebreanu","genre":"Roman românesc","year":1922,"price":39.0}]`
+  (în consolă diacriticele apar escapate, de exemplu `românesc`).
+* **search_books cu „xyz”:** `IsError:` gol și conținutul `[]`. Nu este o eroare: interogarea a mers, doar că nu a găsit nicio carte.
+* **Ce informații despre cod are clientul?** Doar numele tool-ului, descrierea și schema JSON a parametrilor (nume, tip, descriere, valoare implicită, ce e obligatoriu), plus rezultatul apelului. Nu vede interogarea LINQ, SQL-ul, `LibraryContext` sau `RecommendationService`. Implementarea rămâne pe server.

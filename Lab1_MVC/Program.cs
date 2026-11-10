@@ -30,6 +30,9 @@ builder.Services.AddPredictionEnginePool<BookText, GenrePrediction>()
 builder.Services.AddScoped<RecommenderTrainer>();
 builder.Services.AddGrpc();
 builder.Services.AddScoped<RecommendationService>();
+builder.Services.AddMcpServer()
+    .WithHttpTransport()
+    .WithToolsFromAssembly();
 
 builder.Services.AddValidation();
 builder.Services.AddOpenApi();
@@ -41,6 +44,7 @@ builder.Services.AddChatClient(chat);
 
 var app = builder.Build();
 app.MapGrpcService<RecommenderGrpcService>();
+app.MapMcp("/mcp");
 app.MapLibraryApi();
 
 app.MapGet("/api/v2/readers/{id:int}/recommendations",
