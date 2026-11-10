@@ -68,20 +68,39 @@ public class LibraryTools
     }
 
     // ---------- Misiunea 3 · tool-ul nou  ----------
-    // [McpServerTool(Name = "top_books_by_price", ReadOnly = true, Destructive = false, OpenWorld = false)]
-    // [Description("Intoarce cele mai scumpe sau cele mai ieftine carti din catalog.")]
-    // public static async Task<List<BookInfo>> TopBooksByPrice(
-    //     LibraryContext db,
-    //     [Description("true = cele mai scumpe; false = cele mai ieftine.")] bool mostExpensive,
-    //     [Description("Câte cărți (1–10). Implicit 3.")] int top = 3,
-    //     CancellationToken ct = default)
-    // {
-    //     var books = db.Book.AsNoTracking();
-    //     books = mostExpensive ? books.OrderByDescending(b => b.Price) : books.OrderBy(b => b.Price);
-    //     return await books.Take(Math.Clamp(top, 1, 10))
-    //         .Select(b => new BookInfo(b.ID, b.Title,
-    //             b.Author == null ? null : b.Author.FirstName + " " + b.Author.LastName,
-    //             b.Genre == null ? null : b.Genre.Name, b.Year, b.Price))
-    //         .ToListAsync(ct);
-    // }
+    [McpServerTool(Name = "top_books_by_price", ReadOnly = true, Destructive = false, OpenWorld = false)]
+    [Description("Intoarce cele mai scumpe sau cele mai ieftine carti din catalog.")]
+    public static async Task<List<BookInfo>> TopBooksByPrice(
+        LibraryContext db,
+        [Description("true = cele mai scumpe; false = cele mai ieftine.")] bool mostExpensive,
+        [Description("Câte cărți (1–10). Implicit 3.")] int top = 3,
+        CancellationToken ct = default)
+    {
+        var books = db.Book.AsNoTracking();
+        books = mostExpensive ? books.OrderByDescending(b => b.Price) : books.OrderBy(b => b.Price);
+        return await books.Take(Math.Clamp(top, 1, 10))
+            .Select(b => new BookInfo(b.ID, b.Title,
+                b.Author == null ? null : b.Author.FirstName + " " + b.Author.LastName,
+                b.Genre == null ? null : b.Genre.Name, b.Year, b.Price))
+            .ToListAsync(ct);
+    }
+
+    // ---------- Misiunea 3 · books_by_genre (scris de echipă) ----------
+    [McpServerTool(Name = "books_by_genre", ReadOnly = true, Destructive = false, OpenWorld = false)]
+    [Description("Intoarce cartile dintr-un gen al catalogului (de exemplu SF, Fantasy, Polițist, Roman românesc), " +
+                 "ordonate dupa titlu, cu ID, titlu, autor, gen, an si pret.")]
+    public static async Task<List<BookInfo>> BooksByGenre(
+        LibraryContext db,
+        [Description("Numele genului, de exemplu 'SF', 'Fantasy' sau 'Roman românesc'.")] string genre,
+        CancellationToken ct)
+    {
+        var g = genre.Trim();
+        return await db.Book.AsNoTracking()
+            .Where(b => b.Genre != null && b.Genre.Name == g)
+            .OrderBy(b => b.Title)
+            .Select(b => new BookInfo(b.ID, b.Title,
+                b.Author == null ? null : b.Author.FirstName + " " + b.Author.LastName,
+                b.Genre == null ? null : b.Genre.Name, b.Year, b.Price))
+            .ToListAsync(ct);
+    }
 }
