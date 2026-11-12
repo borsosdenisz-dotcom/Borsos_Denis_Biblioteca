@@ -1,6 +1,7 @@
 // Mcp/LibraryTools.cs
 using System.ComponentModel;
 using Microsoft.EntityFrameworkCore;
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using Lab1_MVC.Data;
 using Lab1_MVC.Services;
@@ -17,6 +18,37 @@ public record BookDetails(int Id, string Title, string? Author, string? Genre, i
 [McpServerToolType]
 public class LibraryTools
 {
+    [McpServerTool(Name = "books_by_year", ReadOnly = true, Destructive = false, OpenWorld = false)]
+    [Description("Întoarce maximum 10 cărți publicate într-un interval inclusiv de ani, ordonate după an și titlu.")]
+    public static async Task<List<BookInfo>> BooksByYear(
+        LibraryContext db,
+        [Description("Primul an al intervalului, inclusiv; trebuie să fie între 1000 și anul curent.")] int startYear,
+        [Description("Ultimul an al intervalului, inclusiv; trebuie să fie între anul de început și anul curent.")] int endYear,
+        CancellationToken ct)
+    {
+        var currentYear = DateTime.UtcNow.Year;
+        if (startYear is < 1000 || startYear > currentYear)
+            throw new McpException($"Anul de început trebuie să fie între 1000 și {currentYear}.");
+        if (endYear is < 1000 || endYear > currentYear)
+            throw new McpException($"Anul de sfârșit trebuie să fie între 1000 și {currentYear}.");
+        if (startYear > endYear)
+            throw new McpException("Interval invalid: anul de început trebuie să fie mai mic sau egal cu anul de sfârșit.");
+
+        return await db.Book.AsNoTracking()
+            .Where(book => book.Year >= startYear && book.Year <= endYear)
+            .OrderBy(book => book.Year)
+            .ThenBy(book => book.Title)
+            .Take(10)
+            .Select(book => new BookInfo(
+                book.ID,
+                book.Title,
+                book.Author == null ? null : book.Author.FirstName + " " + book.Author.LastName,
+                book.Genre == null ? null : book.Genre.Name,
+                book.Year,
+                book.Price))
+            .ToListAsync(ct);
+    }
+
     [McpServerTool(Name = "search_books", ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Cauta carti in catalogul Bibliotecii dupa un cuvant din titlu sau din numele autorului. " +
                  "Intoarce cel mult 10 carti, cu ID, titlu, autor, gen, an si pret.")]

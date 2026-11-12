@@ -476,3 +476,61 @@ După scenariu a rămas o singură evaluare a cititorului 1052, cea actualizată
 Într-o aplicație reală, identitatea cititorului nu trebuie acceptată din câmp ascuns sau query string. Autentificarea ar furniza un identificator stabil într-un claim al utilizatorului, iar serverul gRPC ar primi identitatea autentificată prin token/cookie propagat. Pentru orice citire, modificare sau ștergere, serviciul ar compara `ReaderId` al evaluării cu ID-ul din claim și ar răspunde cu `PermissionDenied` dacă nu coincid. Rolurile administrative ar putea avea o politică separată. Astfel autorizarea este verificată pe server la fiecare operație, nu doar ascunsă în interfața portalului.
 
 Build după S1: **reușit**, 0 erori.
+
+### S2 · Tool-ul MCP `books_by_year` (varianta B1)
+
+Tool-ul este descoperit automat de `WithToolsFromAssembly()`. Este marcat explicit `ReadOnly=true`, `Destructive=false`, `OpenWorld=false`, folosește `AsNoTracking`, interogare EF Core asincronă și returnează cel mult 10 rezultate. Anii acceptați sunt între 1000 și anul curent, iar începutul trebuie să fie mai mic sau egal cu sfârșitul.
+
+Schema JSON observată în opțiunea 1 a inspectorului:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "startYear": {
+      "description": "Primul an al intervalului, inclusiv; trebuie să fie între 1000 și anul curent.",
+      "type": "integer"
+    },
+    "endYear": {
+      "description": "Ultimul an al intervalului, inclusiv; trebuie să fie între anul de început și anul curent.",
+      "type": "integer"
+    }
+  },
+  "required": ["startYear", "endYear"]
+}
+```
+
+Apel real din inspector:
+
+```text
+[tool] books_by_year(startYear=1900, endYear=1950)
+IsError:
+```
+
+În client, `IsError` a fost necompletat (`null`, deci succes), iar logul serverului a consemnat `IsError = False`. Au fost întoarse 10 cărți, limita cerută: Câinele din Baskerville (1902), Plumb (1916), Ion (1920), Pădurea spânzuraților (1922), Cuvinte potrivite (1927), Craii de Curtea-Veche (1929), Ultima noapte de dragoste, întâia noapte de război (1930), Crima din Orient Express (1934), Hobbitul (1937) și Enigma Otilieie (1938). Titlurile sunt redate exact cum există în baza locală.
+
+Validarea a fost testată separat:
+
+```text
+[tool] books_by_year(startYear=2020, endYear=1900)
+IsError: true
+An error occurred invoking 'books_by_year': Interval invalid: anul de început trebuie să fie mai mic sau egal cu anul de sfârșit.
+```
+
+În opțiunea 2, liniile reale emise de agent au fost:
+
+```text
+[tool] books_by_year(endYear=1930, startYear=1900)
+[tool] books_by_year(endYear=2010, startYear=2000)
+[tool] books_by_genre(genre=SF)
+```
+
+Primele două întrebări au cerut explicit cărți publicate în intervalele 1900–1930 și 2000–2010, deci agentul a ales `books_by_year`. Întrebarea „Ce cărți SF aveți?” nu trebuia să folosească tool-ul de ani și a ales corect `books_by_genre`. Tool-urile și argumentele au fost corecte; modelul local a deformat însă câteva titluri în textul final (de exemplu „Pâmpoara”, în loc de „Pădurea spânzuraților”), deși rezultatul brut MCP era corect.
+
+Build după S2: **reușit**, 0 erori.
+
+### Folosirea AI
+
+Instrument utilizat: **Codex**. A fost folosit pentru compararea cerințelor cu proiectul existent, implementarea contractelor și serviciilor gRPC, construirea portalului MVC, adăugarea tool-ului MCP, pregătirea testelor reale și verificarea diferențelor Git înaintea fiecărui commit. Un exemplu de prompt folosit este: „Implementează exact tool-ul MCP `books_by_year`, maximum 10 rezultate, EF Core asincron și `McpException` pentru interval invalid.”
+
+O problemă reală identificată în timpul implementării S1 a fost validarea duplicată `[Range(1, 5)]` din modelul MVC: aceasta ar fi oprit cererea cu nota 7 în `ModelState`, înainte ca apelul să ajungă la serverul gRPC, deci testul cerut nu ar fi verificat `InvalidArgument`. Am urmărit fluxul din acțiunea POST, am eliminat validarea duplicată din portal și am păstrat validarea autoritativă în `ReaderRatingsGrpcService`; testul real a afișat apoi `InvalidArgument: stars trebuie să fie între 1 și 5.`.

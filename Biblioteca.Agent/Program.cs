@@ -58,10 +58,24 @@ async Task Inspector()
             new JsonSerializerOptions { WriteIndented = true }));
     }
 
-    Console.Write("\nCautati in catalog (search_books): ");
-    var query = Console.ReadLine() ?? "";
-    CallToolResult result = await mcp.CallToolAsync("search_books",
-        new Dictionary<string, object?> { ["query"] = query });
+    Console.Write("\nAnul de început pentru books_by_year: ");
+    var startYearText = Console.ReadLine();
+    Console.Write("Anul de sfârșit: ");
+    var endYearText = Console.ReadLine();
+    if (!int.TryParse(startYearText, out var startYear)
+        || !int.TryParse(endYearText, out var endYear))
+    {
+        Console.Error.WriteLine("Introduceți doi ani întregi.");
+        return;
+    }
+
+    Console.WriteLine($"  [tool] books_by_year(startYear={startYear}, endYear={endYear})");
+    CallToolResult result = await mcp.CallToolAsync("books_by_year",
+        new Dictionary<string, object?>
+        {
+            ["startYear"] = startYear,
+            ["endYear"] = endYear
+        });
 
     Console.WriteLine($"IsError: {result.IsError}");
     foreach (var block in result.Content.OfType<TextContentBlock>())
@@ -84,6 +98,7 @@ async Task Agent()
         new(ChatRole.System,
             "Ești asistentul Bibliotecii FSEGA. Răspunzi în limba română. " +
             "Pentru orice informație despre cărți, cititori sau recomandări folosește tool-urile. " +
+            "Pentru cărți publicate într-un an sau într-un interval de ani folosește books_by_year. " +
             "Pentru regulament și program folosește search_documents cu source='regulament'. " +
             "Pentru o carte descrisă prin subiect folosește search_documents cu source='carte', apoi get_book_details pentru preț. " +
             "La reguli, include în răspuns limitele, durata și condițiile relevante din fragment. " +
