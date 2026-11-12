@@ -58,6 +58,7 @@ if (!string.IsNullOrWhiteSpace(githubModelsToken))
 
 var app = builder.Build();
 app.MapGrpcService<RecommenderGrpcService>();
+app.MapGrpcService<ReaderRatingsGrpcService>();
 app.MapMcp("/mcp");
 app.MapLibraryApi();
 

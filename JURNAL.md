@@ -456,3 +456,23 @@ Rezultate reale afișate de portal:
 În toate cazurile eroarea a fost prinsă ca `RpcException` și afișată în pagina portalului, fără pagină de eroare necontrolată.
 
 Build după A3: **reușit**, 0 erori.
+
+### S1 · Evaluările cititorilor prin gRPC
+
+Am adăugat serviciul `ReaderRatings` cu cele cinci operații cerute: listare server-streaming, citire, adăugare, actualizare și ștergere. Implementarea folosește `LibraryContext`, metodele asincrone EF Core, `CancellationToken` din apelul gRPC și convertește data la `Timestamp` UTC. Portalul citește fluxul în pagina Index, iar formularele Create/Edit/Delete folosesc token anti-CSRF; Edit trimite numai ID-ul evaluării și nota nouă către serviciu.
+
+Test real prin formularele `Biblioteca.Portal`, pentru `ReaderId=1052`:
+
+- Index: HTTP `200`.
+- adăugare carte 2, nota 4: reușită, evaluarea a primit ID `6600`;
+- adăugare carte 3, nota 5: reușită, evaluarea a primit ID `6601`;
+- actualizare evaluare `6601` la 2 stele: reușită;
+- ștergere evaluare `6600`, după pagina de confirmare: reușită;
+- carte `999`: `NotFound: Cartea cu ID 999 nu există.`;
+- nota `7`: `InvalidArgument: stars trebuie să fie între 1 și 5.`.
+
+După scenariu a rămas o singură evaluare a cititorului 1052, cea actualizată. Modificarea bazei SQLite rămâne numai local și nu este inclusă în commit.
+
+Într-o aplicație reală, identitatea cititorului nu trebuie acceptată din câmp ascuns sau query string. Autentificarea ar furniza un identificator stabil într-un claim al utilizatorului, iar serverul gRPC ar primi identitatea autentificată prin token/cookie propagat. Pentru orice citire, modificare sau ștergere, serviciul ar compara `ReaderId` al evaluării cu ID-ul din claim și ar răspunde cu `PermissionDenied` dacă nu coincid. Rolurile administrative ar putea avea o politică separată. Astfel autorizarea este verificată pe server la fiecare operație, nu doar ascunsă în interfața portalului.
+
+Build după S1: **reușit**, 0 erori.

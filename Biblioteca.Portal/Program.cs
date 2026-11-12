@@ -9,6 +9,11 @@ builder.Services.AddGrpcClient<Recommender.RecommenderClient>(options =>
     options.Address = new Uri(builder.Configuration["Biblioteca:GrpcAddress"]
         ?? throw new InvalidOperationException("Lipsește Biblioteca:GrpcAddress."));
 });
+builder.Services.AddGrpcClient<ReaderRatings.ReaderRatingsClient>(options =>
+{
+    options.Address = new Uri(builder.Configuration["Biblioteca:GrpcAddress"]
+        ?? throw new InvalidOperationException("Lipsește Biblioteca:GrpcAddress."));
+});
 
 var app = builder.Build();
 

@@ -1,0 +1,13 @@
+@model RatingFormViewModel
+@{ ViewData["Title"] = "Evaluare nouă"; }
+
+<h1>Evaluare nouă</h1>
+@if (Model.Error is not null) { <div class="alert alert-danger">@Model.Error</div> }
+<form asp-action="Create" method="post">
+    <input asp-for="ReaderId" type="hidden" />
+    <div class="mb-3"><label asp-for="BookId"></label><input asp-for="BookId" class="form-control" /><span asp-validation-for="BookId" class="text-danger"></span></div>
+    <div class="mb-3"><label asp-for="Stars"></label><input asp-for="Stars" class="form-control" /><span asp-validation-for="Stars" class="text-danger"></span></div>
+    <button class="btn btn-primary" type="submit">Salvează</button>
+    <a asp-action="Index" asp-route-readerId="@Model.ReaderId" class="btn btn-secondary">Înapoi</a>
+</form>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

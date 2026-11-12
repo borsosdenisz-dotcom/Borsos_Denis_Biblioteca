@@ -44,6 +44,7 @@
 
     <ItemGroup>
         <Protobuf Include="Protos\recommender.proto" GrpcServices="Server" />
+        <Protobuf Include="Protos\ratings.proto" GrpcServices="Server" />
     </ItemGroup>
 
 </Project>
