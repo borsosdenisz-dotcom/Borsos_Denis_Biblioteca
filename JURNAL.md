@@ -420,3 +420,15 @@ Scorurile mici și apropiate sunt un semnal că nu există un răspuns bun. Agen
 * `dotnet build Lab1_MVC.sln`: **Build succeeded, 0 erori**.
 * Rămân avertismente din proiectul existent: două dereferențieri nullable în view-urile `Books/Details` și `Books/Delete`, patru alerte pentru dependențe tranzitive ale pachetului de scaffolding și avertismentul WDAC pentru generatorul opțional OllamaSharp. Niciunul nu împiedică build-ul sau funcționarea indexului.
 * Politica Windows Application Control blochează unele DLL-uri NuGet nesemnate când sunt copiate direct în output. Pentru test am pornit assembly-ul cu `dotnet .../Lab1_MVC.dll` după recrearea locală a copiilor din `bin`; nu am dezactivat și nu am schimbat politica de securitate a sistemului.
+
+## Laboratorul 9 · varianta A2 / B1
+
+Număr matricol: **121200052**. Praguri A2: `3,8` pentru „Foarte recomandată” și `2,8` pentru „Recomandată”. Tool B1: `books_by_year`. Cititor de test: **1052**.
+
+### A1 · Portalul cititorului
+
+Am creat aplicația MVC separată `Biblioteca.Portal`. Clientul gRPC este înregistrat o singură dată prin `AddGrpcClient`, cu adresa `https://localhost:7105` citită din `appsettings.json`; controllerul nu creează canale la fiecare cerere. Apelul are deadline de 5 secunde, iar `RpcException` este afișată în pagină.
+
+Test real: formularul portalului a fost trimis pentru `ReaderId=1052`, `Top=5`. Răspunsul HTTP a fost `200`, au fost afișate cinci recomandări, iar badge-ul **„cititor nou”** a apărut. Cititorul 1052 nu are evaluări în baza curentă, deci `RecommendationService` folosește lista populară de rezervă și setează `Fallback=true`; aceasta este cauza indicatorului.
+
+Build după A1: **reușit**, 0 erori.

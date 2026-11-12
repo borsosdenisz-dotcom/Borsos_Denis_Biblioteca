@@ -1,0 +1,47 @@
+@model RecommendationsViewModel
+@{ ViewData["Title"] = "Recomandări (gRPC)"; }
+
+<h1>Recomandări pentru un cititor</h1>
+
+<form asp-action="Index" method="post" class="row g-2 mb-3">
+    <div class="col-auto">
+        <label asp-for="ReaderId" class="form-label"></label>
+        <input asp-for="ReaderId" class="form-control" />
+    </div>
+    <div class="col-auto">
+        <label asp-for="Top" class="form-label"></label>
+        <input asp-for="Top" class="form-control" />
+    </div>
+    <div class="col-auto align-self-end">
+        <button type="submit" class="btn btn-primary">Recomandă</button>
+    </div>
+</form>
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+@if (Model.Books.Count > 0)
+{
+    <table class="table">
+        <thead>
+            <tr><th>Carte</th><th>Scor</th><th></th></tr>
+        </thead>
+        <tbody>
+        @foreach (var book in Model.Books)
+        {
+            <tr>
+                <td>@book.Title</td>
+                <td>@book.Score.ToString("0.00")</td>
+                <td>
+                    @if (book.Fallback)
+                    {
+                        <span class="badge bg-secondary">cititor nou</span>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
