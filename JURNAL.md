@@ -432,3 +432,13 @@ Am creat aplicația MVC separată `Biblioteca.Portal`. Clientul gRPC este înreg
 Test real: formularul portalului a fost trimis pentru `ReaderId=1052`, `Top=5`. Răspunsul HTTP a fost `200`, au fost afișate cinci recomandări, iar badge-ul **„cititor nou”** a apărut. Cititorul 1052 nu are evaluări în baza curentă, deci `RecommendationService` folosește lista populară de rezervă și setează `Fallback=true`; aceasta este cauza indicatorului.
 
 Build după A1: **reușit**, 0 erori.
+
+### A2 · Evoluția contractului
+
+Am adăugat `label = 5` numai pe server și am testat mai întâi clienții generați din contractul vechi. Portalul vechi a răspuns HTTP `200` și a afișat trei cărți; câmpul nou a fost ignorat, conform regulilor de compatibilitate protobuf. `Biblioteca.Client` vechi a funcționat atât unary, cât și server-streaming. În unary a primit: `Designing Data-Intensive Applications (4,08)`, `Fata cu un tatuaj de dragon (3,87)` și `Moromeții (2,93)`.
+
+Experimentul cerut a fost executat temporar numai pe server, cu `title = 6`. Portalul vechi a răspuns tot HTTP `200`, însă cele trei celule „Carte” au fost goale: clientul caută câmpul 2, iar câmpul 6 este necunoscut și este ignorat. Numărul a fost **restabilit la `title = 2`** înainte de commit.
+
+Portalul a fost apoi actualizat la contractul nou și afișează coloana „Etichetă”. Pentru cititorul 1052, cele trei rezultate testate au avut eticheta `Populară (cititor nou)`, deoarece sunt rezultate fallback. Pragurile implementate sunt exact A2: `Score >= 3.8` → „Foarte recomandată”, `Score >= 2.8` → „Recomandată”, altfel „Neutră”; fallback-ul are prioritate și devine „Populară (cititor nou)”.
+
+Build după A2: **reușit**, 0 erori.

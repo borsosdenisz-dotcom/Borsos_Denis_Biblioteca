@@ -26,6 +26,7 @@ message BookScore {
   string title = 2;
   float score = 3;
   bool fallback = 4;      // true (cold start)
+  string label = 5;
 }
 
 message RecommendReply {

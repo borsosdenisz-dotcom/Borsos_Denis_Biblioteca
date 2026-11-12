@@ -80,6 +80,16 @@ public class RecommenderGrpcService(
         BookId = r.BookId,
         Title = r.Title,
         Score = r.Score,
-        Fallback = r.Fallback
+        Fallback = r.Fallback,
+        Label = LabelFor(r)
     };
+
+    private const float HighlyRecommendedThreshold = 3.8f;
+    private const float RecommendedThreshold = 2.8f;
+
+    private static string LabelFor(Recommendation recommendation) =>
+        recommendation.Fallback                           ? "Populară (cititor nou)"
+        : recommendation.Score >= HighlyRecommendedThreshold ? "Foarte recomandată"
+        : recommendation.Score >= RecommendedThreshold       ? "Recomandată"
+        : "Neutră";
 }
