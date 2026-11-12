@@ -8,6 +8,7 @@
   </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="CommunityToolkit.VectorData.InMemory" Version="1.0.1" />
       <PackageReference Include="Grpc.AspNetCore" Version="2.85.0" />
       <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
@@ -22,6 +23,10 @@
       <PackageReference Include="Microsoft.ML.Recommender" Version="0.23.1" />
       <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" />
       <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.4.0" />
+      <PackageReference Include="OllamaSharp" Version="5.5.2">
+        <!-- Aplicația folosește clientul runtime; generatorul opțional este blocat de politica WDAC locală. -->
+        <ExcludeAssets>analyzers</ExcludeAssets>
+      </PackageReference>
       <PackageReference Include="Scalar.AspNetCore" Version="2.18.7" />
     </ItemGroup>
 
@@ -32,6 +37,9 @@
         <None Update="MLModels/GenreClassifier.zip">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
+        <None Include="..\Biblioteca.Embeddings\books.csv"
+              Link="Data\books.csv"
+              CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
     <ItemGroup>

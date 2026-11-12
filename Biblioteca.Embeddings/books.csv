@@ -1,0 +1,41 @@
+BookId,Title,AuthorFirstName,AuthorLastName,Genre,Year,Price,Description
+1,Baltagul,Mihail,Sadoveanu,Roman românesc,1930,32,"O femeie din munți pornește pe urmele soțului dispărut și reconstituie, cu răbdare și intuiție, drumul acestuia."
+2,Enigma Otiliei,George,Călinescu,Roman românesc,1938,45,Un tânăr orfan ajunge în casa unei familii bucureștene în care moștenirea și iubirea se amestecă.
+3,Maitreyi,Mircea,Eliade,Roman românesc,1933,38,Un inginer european în India trăiește o iubire care îi pune la încercare convingerile și cultura.
+4,Ion,Liviu,Rebreanu,Roman românesc,1920,42,Un țăran ardelean este sfâșiat între dorința de pământ și chemarea iubirii.
+5,Moromeții,Marin,Preda,Roman românesc,1955,48,"Viața unei familii din Câmpia Dunării, surprinsă în anii în care lumea satului începe să se schimbe."
+6,"Ultima noapte de dragoste, întâia noapte de război",Camil,Petrescu,Roman românesc,1930,40,"Un ofițer analizează obsesiv gelozia care îl macină, înainte ca războiul să-i schimbe perspectiva."
+7,Pădurea spânzuraților,Liviu,Rebreanu,Roman românesc,1922,39,Un ofițer prins între datorie și conștiință în timpul Primului Război Mondial.
+8,Craii de Curtea-Veche,Mateiu,Caragiale,Roman românesc,1929,36,"Trei boemi rătăcesc prin Bucureștiul decadent, într-o proză rafinată și misterioasă."
+9,Mara,Ioan,Slavici,Roman românesc,1894,34,"O văduvă întreprinzătoare își crește copiii într-un oraș de graniță, cu socoteli și sacrificii."
+10,Amintiri din copilărie,Ion,Creangă,Nuvelă,1892,28,"Năzbâtiile unui copil dintr-un sat moldovenesc, povestite cu umor și nostalgie."
+11,Moara cu noroc,Ioan,Slavici,Nuvelă,1881,26,"Un cârciumar ambițios se lasă atras de un om periculos, iar dorința de câștig îl schimbă."
+12,Luceafărul și alte poezii,Mihai,Eminescu,Poezie,1883,30,"O selecție din lirica eminesciană, de la meditație filozofică la poezia de dragoste."
+13,Plumb,George,Bacovia,Poezie,1916,24,"Poeme ale cenușiului și ale ploii, despre singurătate și apăsarea orașului de provincie."
+14,Cuvinte potrivite,Tudor,Arghezi,Poezie,1927,27,Poezie care caută frumusețea în lucrurile aspre și întrebări despre credință.
+15,Fundația,Isaac,Asimov,SF,1951,44,Un matematician prevede căderea unui imperiu galactic și pune la cale un plan pe o mie de ani.
+16,Dune,Frank,Herbert,SF,1965,55,"Pe o planetă deșertică, controlul unei resurse rare decide soarta unui imperiu."
+17,Solaris,Stanisław,Lem,SF,1961,41,Cercetătorii unei stații spațiale încearcă să înțeleagă un ocean care pare să gândească.
+18,Neuromancer,William,Gibson,SF,1984,43,Un hacker decăzut primește o ultimă misiune într-o lume dominată de corporații și rețele.
+19,Mâna stângă a întunericului,Ursula K.,Le Guin,SF,1969,42,Un trimis pe o planetă înghețată învață să înțeleagă o societate fără genuri fixe.
+20,Hobbitul,J.R.R.,Tolkien,Fantasy,1937,39,"Un hobbit comod pleacă, fără voia lui, într-o aventură cu pitici și un dragon."
+21,Numele vântului,Patrick,Rothfuss,Fantasy,2007,52,"Un erou legendar își povestește singur adevărata viață, de la copilărie la academia de magie."
+22,Un vrăjitor din Terramare,Ursula K.,Le Guin,Fantasy,1968,37,Un tânăr vrăjitor eliberează o umbră din greșeală și trebuie să o înfrunte.
+23,Culoarea magiei,Terry,Pratchett,Fantasy,1983,35,"Un vrăjitor nepriceput însoțește primul turist din Lumea Disc, într-o parodie plină de umor."
+24,Crima din Orient Express,Agatha,Christie,Polițist,1934,33,Un detectiv celebru investighează o crimă comisă într-un tren blocat de zăpadă.
+25,Câinele din Baskerville,Arthur Conan,Doyle,Polițist,1902,29,O legendă de familie și un câine misterios pun la încercare logica unui detectiv.
+26,Numele trandafirului,Umberto,Eco,Polițist,1980,49,"Într-o mănăstire medievală, un călugăr investighează morți legate de o bibliotecă secretă."
+27,Fata cu un tatuaj de dragon,Stieg,Larsson,Polițist,2005,46,Un jurnalist și o hackeriță cercetează dispariția unei tinere de acum patruzeci de ani.
+28,Clean Code,Robert C.,Martin,Programare,2008,189,"Principii și exemple pentru cod lizibil, ușor de testat și de întreținut."
+29,The Pragmatic Programmer,David,Thomas,Programare,1999,175,Obiceiuri și tehnici practice pentru programatori care vor să-și perfecționeze meseria.
+30,Designing Data-Intensive Applications,Martin,Kleppmann,Programare,2017,210,"Cum funcționează bazele de date, replicarea și sistemele distribuite din spatele aplicațiilor moderne."
+31,C# in Depth,Jon,Skeet,Programare,2019,195,O incursiune detaliată în evoluția limbajului C# și în felul în care funcționează intern.
+32,Domain-Driven Design,Eric,Evans,Programare,2003,220,Cum modelăm software-ul complex în jurul limbajului și regulilor domeniului de business.
+33,Sapiens,Yuval Noah,Harari,Istorie și eseu,2011,58,"O istorie a speciei umane, de la vânătorii-culegători la revoluțiile științifice."
+34,"Arme, germeni și oțel",Jared,Diamond,Istorie și eseu,1997,62,"De ce unele societăți au dominat altele? Un răspuns din geografie, biologie și istorie."
+35,Istoria critică a românilor,Lucian,Boia,Istorie și eseu,1997,47,O analiză a felului în care miturile istorice au modelat conștiința națională.
+36,Jurnalul fericirii,Nicolae,Steinhardt,Istorie și eseu,1991,54,Mărturia unui intelectual despre detenția politică și despre transformarea sa interioară.
+37,"Carte nouă, fără evaluări",Ana,Exemplu,Istorie și eseu,2021,39,"Eseu fictiv folosit ca exemplu de carte recentă, fără evaluări suficiente (pentru discuția cold-start)."
+38,1984,George,Orwell,Clasic universal,1949,37,"Într-un stat totalitar, un funcționar încearcă să-și păstreze libertatea de a gândi."
+39,Mândrie și prejudecată,Jane,Austen,Clasic universal,1813,31,O tânără inteligentă și un aristocrat orgolios își depășesc primele impresii.
+40,Crimă și pedeapsă,Feodor,Dostoievski,Clasic universal,1866,44,Un student sărac comite o crimă și se confruntă apoi cu propria conștiință.

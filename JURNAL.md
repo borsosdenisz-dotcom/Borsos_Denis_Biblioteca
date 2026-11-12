@@ -315,3 +315,108 @@ Fiecare schimbare a fost făcută singură în `search_books`. Am repornit serve
 * Windows (Application Control) a blocat pornirea `Lab1_MVC.exe` nou compilat („An Application Control policy has blocked this file”). Am pornit aceeași aplicație cu `dotnet bin/Debug/net10.0/Lab1_MVC.dll`, cu `ASPNETCORE_ENVIRONMENT=Development` și URL-urile profilului https (`https://localhost:7105`), fără să schimb setări de securitate.
 * `LibraryTools.cs` e pus în `namespace Lab1_MVC.Mcp`, cu `using Lab1_MVC.Data; using Lab1_MVC.Services;` și aliasul `using Recommendation = Lab1_MVC.Services.Recommendation;`. Astfel `recommend_books` folosește record-ul din `RecommendationService`, nu `Lab1_MVC.Models.Recommendation`.
 * Agentul (`Program (1).cs`) e folosit neschimbat, cu o singură excepție: portul din `McpEndpoint` (7105).
+
+
+## Întâlnirea 8 · RAG local cu Ollama și tool MCP
+
+Configurația finală este `ChunkMode = "sectiuni"`, modelul `embeddinggemma`, endpoint Ollama `http://localhost:11434` și endpoint MCP `https://localhost:7105/mcp`. Au fost instalate `OllamaSharp` 5.5.2 și `CommunityToolkit.VectorData.InMemory` 1.0.1; modelul `nomic-embed-text` a fost instalat în Ollama pentru comparația din Misiunea 3. `Program.cs` din `Biblioteca.Embeddings` nu a fost copiat peste `Biblioteca.Agent/Program.cs`; Agentul existent a primit separat opțiunea 3.
+
+La pornirea configurației finale, mesajul real din consolă este:
+
+```text
+RAG: 13 fragmente din regulament (sectiuni) + 40 carti indexate.
+```
+
+`DocumentIndex` indexează toate cărțile, inclusiv pe cele care au descrierea `NULL`; în baza curentă acestea sunt **Baltagul (ID 1)** și **Maitreyi (ID 3)**. Pentru ele rămân indexate titlul, autorul și genul, dar căutarea după subiect este evident mai slabă. Datele existente nu au fost rescrise.
+
+### Misiunea 2 · Partea A · integrarea
+
+* Fișierele Moodle au fost puse în `Docs`, `Rag` și `Mcp`, cu namespace-urile `Lab1_MVC.Rag` și `Lab1_MVC.Mcp`; tipul `LibraryContext` este importat din `Lab1_MVC.Data`.
+* Constanta comentată din fișierul original a fost corectată la `public const string ChunkMode = "sectiuni"`.
+* `IEmbeddingGenerator<string, Embedding<float>>` și `DocumentIndex` sunt singleton-uri. Indexul se construiește după `Database.Migrate()` și `LibrarySeed.Seed(db)`, deci baza este pregătită înaintea celor 53 de operații de indexare.
+* `search_documents` este descoperit automat de `.WithToolsFromAssembly()`. Filtrul acceptă numai `regulament` și `carte`; o valoare necunoscută este tratată ca „ambele”, deoarece `llama3.2` a trimis literal `source="gol"` în primul test.
+* Opțiunea 3 din Agent apelează direct tool-ul și afișează rezultatul brut, fără model de limbaj.
+
+### Misiunea 2 · Partea B · rezultatele opțiunii 3
+
+Toate valorile de mai jos provin din apeluri MCP reale, cu `embeddinggemma`, `sectiuni` și `top = 3`.
+
+| # | Întrebarea / sursa | Primul rezultat real |
+|---|---|---|
+| 1 | Câte cărți poate împrumuta un student la master? / regulament | secțiunea 3, „Numărul de cărți împrumutate”, **0,601** |
+| 2 | Cât plătesc dacă întârzii 10 zile cu o carte? / regulament | secțiunea 10, „Acces online și cărți electronice”, **0,510**; secțiunea corectă 6 nu intră în top 3 |
+| 3 | Pot prelungi împrumutul unei cărți? / regulament | secțiunea 4, „Durata împrumutului și prelungirea”, **0,481** |
+| 4 | Caut o carte despre o femeie care își caută soțul dispărut. Cât costă? / carte | „Mâna stângă a întunericului” (ID 19), **0,487**; nu „Baltagul”, deoarece descrierea lui este `NULL` în baza actuală |
+| 5 | Care este programul bibliotecii în sesiune? / ambele | secțiunea 9, „Programul bibliotecii”, **0,623** |
+| 6 | Pot veni cu câinele în sala de lectură? / ambele | secțiunea 8, „Sala de lectură”, **0,571** |
+
+Pentru întrebarea 6, următoarele rezultate au fost secțiunea 1 (**0,473**) și secțiunea 3 (**0,429**). Fragmentul corect spune că animalele de companie nu au acces, cu excepția câinilor-ghid și a câinilor de asistență.
+
+### Misiunea 2 · Partea C · Agentul (`llama3.2`)
+
+Aceasta este o singură rulare reală, în aceeași conversație. Formulările greșite ale modelului sunt rezumate, nu corectate retroactiv.
+
+| # | Tool-uri apelate | Răspuns și verificare |
+|---|---|---|
+| 1 | `search_documents(query=?mprumut student master, source=regulament)` | A răspuns **5 cărți**. Corect, pe baza secțiunii 3. |
+| 2 | `search_documents(query=cărți emprumutat în 10 zile, source=regulament, top=3)` | A răspuns greșit că se pot împrumuta două cărți electronice. RAG nu a adus secțiunea 6 în top 3; răspunsul corect este 10 lei pentru o carte (1 leu/zi × 10 zile). |
+| 3 | `search_documents(query=prelungire imprumut, source=regulament)` | A răspuns că prelungirea se face o singură dată, cu 14 zile, dacă volumul nu e rezervat. Corect, secțiunea 4. |
+| 4 | `search_documents(source=carte, top=3, query=...)` | Nu a identificat cartea și nu a apelat `get_book_details`. Rezultat incorect, explicat de descrierea `NULL` pentru Baltagul. |
+| 5 | `search_documents(query=program bibliotecie sesiune, source=regulament)` | A menționat programul obișnuit și prelungirea până la 22:00 în sesiune. În esență corect, secțiunea 9. |
+| 6 | `search_documents(query=Cine sunt autorul, source=regulament, top=3)` | A răspuns despre categoriile de cititori, nu despre câine. Incorect: modelul a reformulat greșit întrebarea și nu a folosit fragmentul 8. |
+
+La întrebarea 4, ordinea dorită ar fi `search_documents(source=carte)` apoi `get_book_details(bookId=1)`, dar această ordine nu a apărut în rularea reală. Nu există un răspuns inventat în tabel pentru a umple acest câmp.
+
+### Misiunea 3 · Partea A · top-k
+
+Întrebarea testată: „Cât plătesc dacă întârzii 10 zile cu o carte?”, sursa `regulament`. „Fragmentul 6” înseamnă secțiunea „Întârzieri și penalități”.
+
+| top | Locul fragmentului 6 / scor | Fragmente fără legătură apărute înaintea lui |
+|---|---|---|
+| 1 | nu apare | secțiunea 10 (**0,510**) |
+| 3 | nu apare | secțiunile 10 (**0,510**), 12 (**0,503**), 4 (**0,480**) |
+| 8 | locul 5, **0,415** | secțiunile 10, 12, 4 și 3; după el mai apar 1, 11 și 5 |
+
+Creșterea lui `top` nu schimbă ordinea, ci doar permite recuperarea secțiunii relevante aflate mai jos.
+
+### Misiunea 3 · Partea B · chunking
+
+După fiecare variantă serverul a fost recompilat și repornit; la final s-a revenit la `sectiuni`.
+
+| ChunkMode | Fragmente regulament | Întrebarea 2: primul rezultat | Întrebarea 5: primul rezultat |
+|---|---:|---|---|
+| `sectiuni` | 13 | secțiunea 10, **0,510** | secțiunea 9, **0,623** |
+| `document` | 1 | documentul complet, **0,462** | documentul complet, **0,511** |
+| `propozitii` | 40 | secțiunea 10, propoziția 2, **0,564** | secțiunea 9, propoziția 1, **0,674** |
+
+Fragmentarea pe propoziții a crescut scorurile, dar pentru întrebarea 2 a întărit tot rezultatul greșit. Fragmentarea pe document garantează că informația există în singurul rezultat, dar trimite agentului întreg regulamentul.
+
+### Misiunea 3 · Partea C · modelul de embeddings
+
+Ambele modele au produs vectori de dimensiune 768. Testele au fost făcute cu `sectiuni` și sursa `regulament`; la final s-a revenit la `embeddinggemma`.
+
+| Întrebarea | embeddinggemma | nomic-embed-text |
+|---|---|---|
+| Câte cărți poate împrumuta un student la master? | secțiunea 3, **0,601** | secțiunea 1, **0,752** |
+| Cât plătesc dacă întârzii 10 zile cu o carte? | secțiunea 10, **0,510** | secțiunea 3, **0,717** |
+| How many books can a master student borrow? | secțiunea 3, **0,659** | secțiunea 1, **0,501** |
+
+Scorul mai mare nu înseamnă automat rezultat mai corect: în aceste trei teste, `embeddinggemma` a găsit secțiunea corectă pentru întrebările despre numărul de cărți, iar `nomic-embed-text` nu.
+
+### Misiunea 3 · Partea D · întrebare fără răspuns
+
+Pentru „Ce meniu are cantina azi?”, fără filtru de sursă, opțiunea 3 a întors:
+
+1. secțiunea 8, „Sala de lectură” — **0,264**;
+2. „Carte nouă, fără evaluări” — **0,254**;
+3. secțiunea 9, „Programul bibliotecii” — **0,252**.
+
+Scorurile mici și apropiate sunt un semnal că nu există un răspuns bun. Agentul a apelat `search_documents(query=meniu cantina azi, source=regulament)` și a răspuns: „Nu am găsit informații despre meniu în reglementul cantinei.” Concluzia (nu are informația) este corectă, chiar dacă formularea modelului este stângace.
+
+**Concluzia echipei:** în aceste rulări, schimbarea modelului de embeddings a modificat cel mai mult scorurile și clasarea. `nomic-embed-text` a dat uneori scoruri mai mari, dar rezultate mai puțin relevante. Chunking-ul a schimbat granularitatea și scorul, iar `top-k` doar numărul rezultatelor returnate.
+
+### Verificare tehnică finală
+
+* `dotnet build Lab1_MVC.sln`: **Build succeeded, 0 erori**.
+* Rămân avertismente din proiectul existent: două dereferențieri nullable în view-urile `Books/Details` și `Books/Delete`, patru alerte pentru dependențe tranzitive ale pachetului de scaffolding și avertismentul WDAC pentru generatorul opțional OllamaSharp. Niciunul nu împiedică build-ul sau funcționarea indexului.
+* Politica Windows Application Control blochează unele DLL-uri NuGet nesemnate când sunt copiate direct în output. Pentru test am pornit assembly-ul cu `dotnet .../Lab1_MVC.dll` după recrearea locală a copiilor din `bin`; nu am dezactivat și nu am schimbat politica de securitate a sistemului.
