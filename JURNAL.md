@@ -442,3 +442,17 @@ Experimentul cerut a fost executat temporar numai pe server, cu `title = 6`. Por
 Portalul a fost apoi actualizat la contractul nou și afișează coloana „Etichetă”. Pentru cititorul 1052, cele trei rezultate testate au avut eticheta `Populară (cititor nou)`, deoarece sunt rezultate fallback. Pragurile implementate sunt exact A2: `Score >= 3.8` → „Foarte recomandată”, `Score >= 2.8` → „Recomandată”, altfel „Neutră”; fallback-ul are prioritate și devine „Populară (cititor nou)”.
 
 Build după A2: **reușit**, 0 erori.
+
+### A3 · Validări și coduri de stare gRPC
+
+Validările sunt executate la începutul ambelor metode `Recommend` și `StreamRecommendations`.
+
+Rezultate reale afișate de portal:
+
+- `ReaderId=-3` → `InvalidArgument: reader_id trebuie să fie un număr pozitiv.`
+- `Top=50` → `InvalidArgument: top poate fi cel mult 20.`
+- aplicația Biblioteca oprită, portalul pornit, cerere validă → `Unavailable: Error connecting to subchannel.`
+
+În toate cazurile eroarea a fost prinsă ca `RpcException` și afișată în pagina portalului, fără pagină de eroare necontrolată.
+
+Build după A3: **reușit**, 0 erori.
