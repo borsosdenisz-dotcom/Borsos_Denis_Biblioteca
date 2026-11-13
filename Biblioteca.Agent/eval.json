@@ -1,0 +1,77 @@
+[
+  {
+    "question": "Cât plătesc dacă aduc cartea cu o săptămână mai târziu?",
+    "source": "regulament",
+    "expected": "6\\. Întârzieri și penalități"
+  },
+  {
+    "question": "Cine poate împrumuta cărți?",
+    "source": "regulament",
+    "expected": "1\\. Cine poate împrumuta"
+  },
+  {
+    "question": "Pot cere o carte care e împrumutată de altcineva?",
+    "source": "regulament",
+    "expected": "5\\. Rezervări"
+  },
+  {
+    "question": "Cum propun bibliotecii să cumpere o carte?",
+    "source": "regulament",
+    "expected": "12\\. Sugestii de achiziție"
+  },
+  {
+    "question": "Până la ce oră e deschis în sesiune?",
+    "source": "regulament",
+    "expected": "9\\. Programul bibliotecii"
+  },
+  {
+    "question": "Care este limita de volume pentru un masterand?",
+    "source": "regulament",
+    "expected": "3\\. Numărul de cărți împrumutate"
+  },
+  {
+    "question": "Îmi pot extinde termenul de returnare și în ce condiții?",
+    "source": "regulament",
+    "expected": "4\\. Durata împrumutului și prelungirea"
+  },
+  {
+    "question": "Ce fac dacă nu-mi mai găsesc permisul de bibliotecă?",
+    "source": "regulament",
+    "expected": "2\\. Permisul de bibliotecă"
+  },
+  {
+    "question": "Cum trebuie să procedez dacă am stricat un volum?",
+    "source": "regulament",
+    "expected": "7\\. Cărți pierdute sau deteriorate"
+  },
+  {
+    "question": "Este permis să folosesc calculatorul portabil în spațiul de studiu?",
+    "source": "regulament",
+    "expected": "8\\. Sala de lectură"
+  },
+  {
+    "question": "How many e-books may I borrow at the same time?",
+    "source": "regulament",
+    "expected": "10\\. Acces online și cărți electronice"
+  },
+  {
+    "question": "How long does the library retain my personal information after my card expires?",
+    "source": "regulament",
+    "expected": "11\\. Date personale"
+  },
+  {
+    "question": "For how many working days is a reserved book held at the desk?",
+    "source": "regulament",
+    "expected": "5\\. Rezervări"
+  },
+  {
+    "question": "Am voie să intru în sală cu mâncare sau cu o sticlă cu apă?",
+    "source": "regulament",
+    "expected": "8\\. Sala de lectură"
+  },
+  {
+    "question": "Pot lua acasă dicționarele și enciclopediile din fondul de referință?",
+    "source": "regulament",
+    "expected": "8\\. Sala de lectură"
+  }
+]

@@ -13,4 +13,8 @@
     <PackageReference Include="ModelContextProtocol" Version="2.4.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="eval.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

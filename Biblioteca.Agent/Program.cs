@@ -2,6 +2,7 @@
 // 1 = inspector (fara model de limbaj): ce vede clientul MCP
 // 2 = agentul: Ollama + tool-urile MCP ale Bibliotecii
 // 3 = cautare semantica directa in regulament si descrierile cartilor
+// 4 = evaluarea recall@1, recall@3 si recall@5 din eval.json
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
@@ -40,11 +41,12 @@ catch (Exception exception)
 
 await using var mcpLifetime = mcp;
 
-Console.Write("1 Inspector ; 2 Agent ; 3 Căutare în documente > ");
+Console.Write("1 Inspector ; 2 Agent ; 3 Căutare în documente ; 4 Evaluare > ");
 switch (Console.ReadLine())
 {
     case "1": await Inspector(); break;
     case "3": await CautareDocumente(); break;
+    case "4": await Evaluare(); break;
     default: await Agent(); break;
 }
 
@@ -259,31 +261,111 @@ async Task CautareDocumente()
         var topText = Console.ReadLine();
         var top = int.TryParse(topText, out var parsedTop) ? Math.Clamp(parsedTop, 1, 8) : 3;
 
-        var arguments = new Dictionary<string, object?>
-        {
-            ["query"] = query,
-            ["top"] = top
-        };
-        if (!string.IsNullOrWhiteSpace(source)) arguments["source"] = source.Trim();
-
         try
         {
-            CallToolResult result = await mcp.CallToolAsync("search_documents", arguments);
-            if (result.IsError == true)
-            {
-                foreach (var block in result.Content.OfType<TextContentBlock>())
-                    Console.Error.WriteLine($"Eroare MCP: {block.Text}");
-                continue;
-            }
-
-            foreach (var block in result.Content.OfType<TextContentBlock>())
-                PrintDocumentHits(block.Text);
+            var json = await SearchDocumentsJson(query, source, top);
+            if (json is not null)
+                PrintDocumentHits(json);
         }
         catch (Exception exception)
         {
             Console.Error.WriteLine($"Apelul search_documents a eșuat: {exception.Message}");
         }
     }
+}
+
+// Laboratorul 10, S1 - acelasi apel MCP ca in optiunea 3, cu top=5.
+async Task Evaluare()
+{
+    var evalPath = Path.Combine(AppContext.BaseDirectory, "eval.json");
+    if (!File.Exists(evalPath))
+        evalPath = Path.Combine(Environment.CurrentDirectory, "Biblioteca.Agent", "eval.json");
+    if (!File.Exists(evalPath))
+    {
+        Console.Error.WriteLine("eval.json nu a fost găsit în output sau în Biblioteca.Agent.");
+        return;
+    }
+
+    var json = await File.ReadAllTextAsync(evalPath);
+    var items = JsonSerializer.Deserialize<List<EvaluationItem>>(
+        json,
+        new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+    if (items.Count == 0)
+    {
+        Console.Error.WriteLine("eval.json nu conține întrebări.");
+        return;
+    }
+
+    var at1 = 0;
+    var at3 = 0;
+    var at5 = 0;
+    Console.WriteLine("\n # | Loc | Scor 1 | Întrebare");
+    Console.WriteLine(new string('-', 100));
+
+    for (var index = 0; index < items.Count; index++)
+    {
+        var item = items[index];
+        try
+        {
+            var hitsJson = await SearchDocumentsJson(item.Question, item.Source, 5);
+            if (hitsJson is null)
+            {
+                Console.WriteLine($"{index + 1,2} | negăsit |       - | {item.Question}");
+                continue;
+            }
+
+            using var document = JsonDocument.Parse(hitsJson);
+            var hits = document.RootElement.EnumerateArray().ToArray();
+            var firstScore = hits.Length == 0
+                ? (double?)null
+                : GetProperty(hits[0], "score").GetDouble();
+            var foundAt = Array.FindIndex(
+                hits,
+                hit => (GetProperty(hit, "title").GetString() ?? "")
+                    .StartsWith(item.Expected, StringComparison.Ordinal));
+            var position = foundAt < 0 ? 0 : foundAt + 1;
+
+            if (position == 1) at1++;
+            if (position is >= 1 and <= 3) at3++;
+            if (position is >= 1 and <= 5) at5++;
+
+            var place = position == 0 ? "negăsit" : position.ToString();
+            var score = firstScore is null ? "-" : firstScore.Value.ToString("F3");
+            Console.WriteLine($"{index + 1,2} | {place,7} | {score,7} | {item.Question}");
+            Console.WriteLine($"   așteptat: {item.Expected}");
+        }
+        catch (Exception exception)
+        {
+            Console.WriteLine($"{index + 1,2} | eroare  |       - | {item.Question}");
+            Console.Error.WriteLine($"   {exception.Message}");
+        }
+    }
+
+    Console.WriteLine(new string('-', 100));
+    Console.WriteLine($"recall@1 = {at1}/{items.Count} = {(double)at1 / items.Count:P1}");
+    Console.WriteLine($"recall@3 = {at3}/{items.Count} = {(double)at3 / items.Count:P1}");
+    Console.WriteLine($"recall@5 = {at5}/{items.Count} = {(double)at5 / items.Count:P1}");
+}
+
+async Task<string?> SearchDocumentsJson(string query, string? source, int top)
+{
+    var arguments = new Dictionary<string, object?>
+    {
+        ["query"] = query,
+        ["top"] = top
+    };
+    if (!string.IsNullOrWhiteSpace(source))
+        arguments["source"] = source.Trim();
+
+    var result = await mcp.CallToolAsync("search_documents", arguments);
+    if (result.IsError == true)
+    {
+        foreach (var block in result.Content.OfType<TextContentBlock>())
+            Console.Error.WriteLine($"Eroare MCP: {block.Text}");
+        return null;
+    }
+
+    return result.Content.OfType<TextContentBlock>().FirstOrDefault()?.Text;
 }
 
 static void PrintDocumentHits(string json)
@@ -312,3 +394,5 @@ static JsonElement GetProperty(JsonElement element, string name) =>
     element.EnumerateObject()
         .First(property => string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
         .Value;
+
+public sealed record EvaluationItem(string Question, string Source, string Expected);

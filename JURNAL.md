@@ -616,3 +616,40 @@ RAG clasic: niciun fragment peste pragul 0.57; llama3.2 nu este apelat.
 ```
 
 Diferența de timp, 2693 ms față de 31 ms, este compatibilă cu eliminarea generării; fallback-ul face doar embedding-ul interogării, căutarea și filtrarea. Build după A3: **reușit, 0 erori** (aceleași 7 avertismente preexistente descrise la A2).
+
+### S1 · Evaluarea căutării, varianta B1
+
+`Biblioteca.Agent/eval.json` conține 15 întrebări: cele 5 obligatorii și 10 parafraze proprii, dintre care ultimele trei cerute sunt în engleză. Valorile `expected` includ bara inversă din titlurile Markdown produse efectiv de `Chunker`, de exemplu `6\. Întârzieri și penalități`; astfel potrivirea `StartsWith` nu produce rezultate fals negative din cauza caracterului escapabil.
+
+Opțiunea 4 reutilizează funcția de apel MCP a opțiunii 3, cere `top=5`, afișează locul fragmentului așteptat și scorul primului rezultat, apoi calculează recall@1/@3/@5. Fișierul este copiat în output, iar codul are și fallback către `Biblioteca.Agent/eval.json` când aplicația este lansată din rădăcina soluției.
+
+Rezultate complete, copiate din cele două execuții pe același set (`loc = —` înseamnă negăsit în top 5; scorul este al primului rezultat):
+
+| # | Întrebare | Fragment așteptat | embeddinggemma loc / scor 1 | nomic-embed-text loc / scor 1 |
+|---:|---|---|---:|---:|
+| 1 | Cât plătesc dacă aduc cartea cu o săptămână mai târziu? | `6\. Întârzieri și penalități` | 1 / 0,500 | 1 / 0,564 |
+| 2 | Cine poate împrumuta cărți? | `1\. Cine poate împrumuta` | 1 / 0,844 | 1 / 0,890 |
+| 3 | Pot cere o carte care e împrumutată de altcineva? | `5\. Rezervări` | — / 0,588 | — / 0,704 |
+| 4 | Cum propun bibliotecii să cumpere o carte? | `12\. Sugestii de achiziție` | 1 / 0,714 | 1 / 0,762 |
+| 5 | Până la ce oră e deschis în sesiune? | `9\. Programul bibliotecii` | 1 / 0,584 | 1 / 0,631 |
+| 6 | Care este limita de volume pentru un masterand? | `3\. Numărul de cărți împrumutate` | 1 / 0,406 | 3 / 0,455 |
+| 7 | Îmi pot extinde termenul de returnare și în ce condiții? | `4\. Durata împrumutului și prelungirea` | 1 / 0,358 | 3 / 0,423 |
+| 8 | Ce fac dacă nu-mi mai găsesc permisul de bibliotecă? | `2\. Permisul de bibliotecă` | 1 / 0,521 | 3 / 0,579 |
+| 9 | Cum trebuie să procedez dacă am stricat un volum? | `7\. Cărți pierdute sau deteriorate` | 1 / 0,294 | 1 / 0,404 |
+| 10 | Este permis să folosesc calculatorul portabil în spațiul de studiu? | `8\. Sala de lectură` | 2 / 0,416 | 3 / 0,510 |
+| 11 | How many e-books may I borrow at the same time? | `10\. Acces online și cărți electronice` | 1 / 0,286 | — / 0,266 |
+| 12 | How long does the library retain my personal information after my card expires? | `11\. Date personale` | 1 / 0,361 | 1 / 0,347 |
+| 13 | For how many working days is a reserved book held at the desk? | `5\. Rezervări` | 1 / 0,279 | — / 0,257 |
+| 14 | Am voie să intru în sală cu mâncare sau cu o sticlă cu apă? | `8\. Sala de lectură` | 1 / 0,489 | 1 / 0,620 |
+| 15 | Pot lua acasă dicționarele și enciclopediile din fondul de referință? | `8\. Sala de lectură` | 1 / 0,634 | 1 / 0,796 |
+
+| Model | recall@1 | recall@3 | recall@5 |
+|---|---:|---:|---:|
+| embeddinggemma | 13/15 = 86,7% | 14/15 = 93,3% | 14/15 = 93,3% |
+| nomic-embed-text | 8/15 = 53,3% | 12/15 = 80,0% | 12/15 = 80,0% |
+
+Întrebările 11 și 13 au trecut de la găsit pe locul 1 cu `embeddinggemma` la negăsit cu `nomic-embed-text`. Nu a existat nicio trecere inversă. Pentru întrebările 6, 7 și 8, fragmentul corect a coborât de pe locul 1 pe locul 3. Întrebarea 3 a rămas negăsită cu ambele modele, deși scorul primului rezultat a crescut; acesta este un exemplu că valoarea absolută a scorului nu garantează fragmentul corect.
+
+Rerangarea este 50% semantică și 50% lexicală, iar componenta lexicală a rămas identică între experimente. Diferențele provin deci din vecinătățile generate de modelul de embeddings. Pe acest corpus românesc, `embeddinggemma` a păstrat mai bine atât parafrazele românești, cât și două dintre interogările în engleză către secțiuni românești. Aș păstra `embeddinggemma`, deoarece are recall mai mare la toate cele trei valori k și poziții mai bune pentru întrebările operaționale.
+
+Pentru `nomic-embed-text` serverul a fost repornit cu override temporar și indexul a fost reconstruit integral; vectorii documentelor și interogărilor au folosit același model. La final override-ul a fost eliminat și serverul a fost repornit cu valoarea versionată `Ollama:EmbeddingModel = embeddinggemma`. Build după S1: `dotnet build Lab1_MVC.sln --no-restore` — **reușit, 0 erori și 8 avertismente preexistente**; proiectul `Biblioteca.Agent` separat a avut 0 avertismente.
