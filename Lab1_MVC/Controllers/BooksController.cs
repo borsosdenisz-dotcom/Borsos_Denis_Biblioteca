@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Lab1_MVC.Models;
 using Lab1_MVC.Data;
+using Lab1_MVC.Rag;
 using Microsoft.Extensions.ML;
 
 namespace Lab1_MVC.Controllers
@@ -17,11 +18,16 @@ namespace Lab1_MVC.Controllers
     {
         private readonly LibraryContext _context;
         private readonly ILogger<BooksController> _logger;
+        private readonly DocumentIndex _index;
 
-        public BooksController(LibraryContext context, ILogger<BooksController> logger)
+        public BooksController(
+            LibraryContext context,
+            ILogger<BooksController> logger,
+            DocumentIndex index)
         {
             _context = context;
             _logger = logger;
+            _index = index;
         }
 
         // GET: Books
@@ -118,6 +124,7 @@ namespace Lab1_MVC.Controllers
             {
                 _context.Add(book);
                 await _context.SaveChangesAsync();
+                await _index.IndexBookAsync(_context, book.ID);
                 return RedirectToAction(nameof(Index));
             }
             ViewData["AuthorID"] = new SelectList(_context.Author.OrderBy(a => a.LastName), "ID", "FullName", book.AuthorID);
@@ -155,7 +162,8 @@ namespace Lab1_MVC.Controllers
             var vm = new BookEditViewModel
             {
                 ID = book.ID, Title = book.Title, Price = book.Price,
-                AuthorID = book.AuthorID, GenreID = book.GenreID
+                AuthorID = book.AuthorID, GenreID = book.GenreID,
+                Description = book.Description
             };
             return View(vm);
         }
@@ -177,7 +185,11 @@ namespace Lab1_MVC.Controllers
             if (book is null) return NotFound();
             book.Title = vm.Title; book.Price = vm.Price;
             book.AuthorID = vm.AuthorID; book.GenreID = vm.GenreID;
+            // Sirul gol marcheaza o stergere explicita si impiedica BuildAsync
+            // sa refaca descrierea din catalogul CSV la urmatoarea pornire.
+            book.Description = vm.Description ?? string.Empty;
             await _context.SaveChangesAsync();
+            await _index.IndexBookAsync(_context, book.ID);
             return RedirectToAction(nameof(Index));
         }
 
@@ -213,6 +225,7 @@ namespace Lab1_MVC.Controllers
             }
 
             await _context.SaveChangesAsync();
+            await _index.RemoveBookAsync(id);
             return RedirectToAction(nameof(Index));
         }
 

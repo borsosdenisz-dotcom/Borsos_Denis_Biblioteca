@@ -534,3 +534,28 @@ Build după S2: **reușit**, 0 erori.
 Instrument utilizat: **Codex**. A fost folosit pentru compararea cerințelor cu proiectul existent, implementarea contractelor și serviciilor gRPC, construirea portalului MVC, adăugarea tool-ului MCP, pregătirea testelor reale și verificarea diferențelor Git înaintea fiecărui commit. Un exemplu de prompt folosit este: „Implementează exact tool-ul MCP `books_by_year`, maximum 10 rezultate, EF Core asincron și `McpException` pentru interval invalid.”
 
 O problemă reală identificată în timpul implementării S1 a fost validarea duplicată `[Range(1, 5)]` din modelul MVC: aceasta ar fi oprit cererea cu nota 7 în `ModelState`, înainte ca apelul să ajungă la serverul gRPC, deci testul cerut nu ar fi verificat `InvalidArgument`. Am urmărit fluxul din acțiunea POST, am eliminat validarea duplicată din portal și am păstrat validarea autoritativă în `ReaderRatingsGrpcService`; testul real a afișat apoi `InvalidArgument: stars trebuie să fie între 1 și 5.`.
+
+## Laborator 10
+
+Varianta personală: **A2 / B1**, număr matricol **121200052**.
+
+### A1 · Indexul urmează catalogul
+
+`IndexBookAsync` citește cartea cu `AsNoTracking`, include ID-ul, titlul, autorul, genul și descrierea și face upsert cu cheia `carte-{ID}` numai după salvarea EF Core. `RemoveBookAsync` șterge aceeași cheie atât din colecția vectorială, cât și din lista folosită de rerangarea hibridă. Formularul Edit permite acum modificarea descrierii.
+
+Cheia trebuie să rămână identică în `BuildAsync` și `IndexBookAsync`: upsert-ul găsește astfel fragmentul existent și îl înlocuiește. O cheie diferită ar păstra versiunea veche și ar crea încă un fragment pentru aceeași carte; Delete nu ar mai ști ce variantă să elimine.
+
+Completarea istorică din `books.csv` se aplică numai valorilor `null`. La ștergerea explicită prin Edit este salvat șirul gol, astfel încât cartea este scoasă din index și descrierea nu reapare din CSV după repornire. O carte ștearsă nu este parcursă de `BuildAsync`, deoarece lista pornește exclusiv din baza de date.
+
+Test CRUD real, executat pe o copie temporară a bazei SQLite, cu aplicația pornită o singură dată:
+
+- Create: `Codex A1 Carte Temporara 13112026`, ID 41, descrierea despre „farul de ametist”; căutarea semantică a întors cartea pe locul 1, scor `0,499`, fără repornire.
+- Edit: descrierea a fost înlocuită cu textul despre „orhideele” și „semințele de obsidian”; rezultatul ID 41 a rămas pe locul 1 și a conținut textul nou, scor `0,618`.
+- Delete: după ștergere, ID 41 nu a mai apărut în primele 5 rezultate ale aceleiași căutări.
+- Interfața Books a răspuns HTTP `200` după fiecare POST. Baza originală nu a fost folosită pentru acest scenariu.
+
+Aplicația `Biblioteca.Agent` nu a putut fi executată în această sesiune: politica Windows Application Control a blocat assembly-ul său chiar și după rebuild. Am apelat același `search_documents`, cu `source=carte`, direct prin endpoint-ul MCP și am păstrat mai sus rezultatele efective. Aceasta este o limitare de mediu, nu un test raportat ca trecut pentru opțiunea 3.
+
+Dacă `SaveChangesAsync` reușește, iar Ollama eșuează la generarea embedding-ului, baza de date rămâne salvată, dar cererea MVC eșuează și indexul rămâne în starea anterioară: cartea nouă poate lipsi, versiunea editată poate fi veche, iar la Delete baza este deja fără carte înainte de ștergerea vectorului. Sincronizarea se recuperează prin reîncercarea `IndexBookAsync`/`RemoveBookAsync`; o repornire reconstruiește integral indexul din baza de date. În producție ar fi potrivit și un job persistent de retry/outbox.
+
+Build după A1: `dotnet build Lab1_MVC/Lab1_MVC.csproj --no-restore --no-dependencies` — **reușit, 0 erori**, cu 4 avertismente NU190x deja existente pentru dependențe tranzitive.

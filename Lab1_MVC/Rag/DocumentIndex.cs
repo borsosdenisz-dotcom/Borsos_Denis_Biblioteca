@@ -61,8 +61,9 @@ public class DocumentIndex
             _documents.Add(chunk);
         }
 
-        // Indexam toate cartile. Daca o descriere a fost stearsa prin CRUD,
-        // titlul, autorul si genul raman totusi cautabile semantic.
+        // Indexam cartile care au descriere. Valorile null din baza veche pot fi
+        // completate din CSV, dar sirul gol inseamna ca descrierea a fost stearsa
+        // explicit prin CRUD si nu trebuie reintrodusa la repornire.
         var books = await db.Book.AsNoTracking()
             .Select(b => new
             {
@@ -79,33 +80,86 @@ public class DocumentIndex
         foreach (var book in books)
         {
             var description = book.Description;
-            if (string.IsNullOrWhiteSpace(description)
+            if (description is null
                 && fallbackDescriptions.TryGetValue(book.ID, out var fallback))
             {
                 description = fallback;
                 descriptionsCompleted++;
             }
 
-            var text = $"{book.Title}, de {book.Author} ({book.Genre}). {description ?? ""}";
-            var chunk = new DocumentChunk
-            {
-                Id = $"carte-{book.ID}",
-                Source = "carte",
-                Title = $"{book.Title} (ID {book.ID})",
-                Text = text,
-                Embedding = text
-            };
+            if (string.IsNullOrWhiteSpace(description))
+                continue;
+
+            var chunk = CreateBookChunk(
+                book.ID,
+                book.Title,
+                book.Author,
+                book.Genre,
+                description);
             await _collection.UpsertAsync(chunk, ct);
             _documents.Add(chunk);
         }
 
-        Count = parts.Count + books.Count;
+        Count = _documents.Count;
         _log.LogInformation(
-            "RAG: {Parts} fragmente din regulament ({Mode}) + {Books} carti indexate; {Completed} descrieri completate doar in memorie din CSV.",
+            "RAG: {Parts} fragmente din regulament ({Mode}) + {Books} carti cu descriere indexate; {Completed} descrieri completate doar in memorie din CSV.",
             parts.Count,
             ChunkMode,
-            books.Count,
+            _documents.Count - parts.Count,
             descriptionsCompleted);
+    }
+
+    public async Task IndexBookAsync(
+        LibraryContext db,
+        int bookId,
+        CancellationToken ct = default)
+    {
+        var book = await db.Book.AsNoTracking()
+            .Where(candidate => candidate.ID == bookId)
+            .Select(candidate => new
+            {
+                candidate.ID,
+                candidate.Title,
+                candidate.Description,
+                Author = candidate.Author == null
+                    ? ""
+                    : candidate.Author.FirstName + " " + candidate.Author.LastName,
+                Genre = candidate.Genre == null ? "" : candidate.Genre.Name
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (book is null || string.IsNullOrWhiteSpace(book.Description))
+        {
+            await RemoveBookAsync(bookId, ct);
+            return;
+        }
+
+        var chunk = CreateBookChunk(
+            book.ID,
+            book.Title,
+            book.Author,
+            book.Genre,
+            book.Description);
+        await _collection.UpsertAsync(chunk, ct);
+
+        lock (_documents)
+        {
+            _documents.RemoveAll(document => document.Id == chunk.Id);
+            _documents.Add(chunk);
+            Count = _documents.Count;
+        }
+    }
+
+    public async Task RemoveBookAsync(int bookId, CancellationToken ct = default)
+    {
+        var id = $"carte-{bookId}";
+        await _collection.DeleteAsync(id, ct);
+
+        lock (_documents)
+        {
+            _documents.RemoveAll(document => document.Id == id);
+            Count = _documents.Count;
+        }
     }
 
     public async Task<List<DocumentHit>> SearchAsync(
@@ -130,7 +184,11 @@ public class DocumentIndex
             semanticScores[result.Record.Id] = result.Score ?? 0;
         }
 
-        var candidates = _documents
+        List<DocumentChunk> documents;
+        lock (_documents)
+            documents = [.. _documents];
+
+        var candidates = documents
             .Where(document => source is null || document.Source == source)
             .Select(document =>
             {
@@ -157,6 +215,24 @@ public class DocumentIndex
                 candidate.Chunk.Text,
                 Math.Round(candidate.Relevance, 3)))
             .ToList();
+    }
+
+    private static DocumentChunk CreateBookChunk(
+        int id,
+        string title,
+        string author,
+        string genre,
+        string description)
+    {
+        var text = $"ID {id}: {title}, de {author} ({genre}). {description}";
+        return new DocumentChunk
+        {
+            Id = $"carte-{id}",
+            Source = "carte",
+            Title = $"{title} (ID {id})",
+            Text = text,
+            Embedding = text
+        };
     }
 
     private static Dictionary<int, string> ReadDescriptions(string path)
