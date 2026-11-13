@@ -38,22 +38,26 @@ var ollamaEndpoint = builder.Configuration["Ollama:Endpoint"]
     ?? "http://localhost:11434";
 var embeddingModel = builder.Configuration["Ollama:EmbeddingModel"]
     ?? "embeddinggemma";
+var chatModel = builder.Configuration["Ollama:ChatModel"]
+    ?? "llama3.2";
 builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
     new OllamaApiClient(new Uri(ollamaEndpoint), embeddingModel));
+builder.Services.AddSingleton<IChatClient>(
+    new OllamaApiClient(new Uri(ollamaEndpoint), chatModel));
 builder.Services.AddSingleton<DocumentIndex>();
 
 builder.Services.AddValidation();
 builder.Services.AddOpenApi();
 
 var githubModelsToken = builder.Configuration["GitHubModels:Token"];
+IChatClient? githubModelsChat = null;
 if (!string.IsNullOrWhiteSpace(githubModelsToken))
 {
-    IChatClient chat = new OpenAIClient(
+    githubModelsChat = new OpenAIClient(
             new ApiKeyCredential(githubModelsToken),
             new OpenAIClientOptions { Endpoint = new Uri("https://models.github.ai/inference") })
         .GetChatClient("openai/gpt-4o-mini")
         .AsIChatClient();
-    builder.Services.AddChatClient(chat);
 }
 
 var app = builder.Build();
@@ -83,15 +87,15 @@ app.MapGet("/api/v2/readers/{id:int}/recommendations",
 })
 .WithTags("Recomandări");
 
-if (!string.IsNullOrWhiteSpace(githubModelsToken))
+if (githubModelsChat is not null)
 {
-    app.MapPost("/api/v2/books/{id:int}/pitch", async (int id, LibraryContext db, IChatClient ai) =>
+    app.MapPost("/api/v2/books/{id:int}/pitch", async (int id, LibraryContext db) =>
     {
         var b = await db.Book.Include(x => x.Author).Include(x => x.Genre)
             .FirstOrDefaultAsync(x => x.ID == id);
         if (b is null) return Results.NotFound();
 
-        var r = await ai.GetResponseAsync(
+        var r = await githubModelsChat.GetResponseAsync(
         [
             new ChatMessage(ChatRole.System, "Ești bibliotecar. Răspunde în română, în cel mult 2 propoziții."),
             new ChatMessage(ChatRole.User, $"Recomandă „{b.Title}” de {b.Author?.FullName} ({b.Genre?.Name}). Descriere: {b.Description}")
@@ -99,8 +103,8 @@ if (!string.IsNullOrWhiteSpace(githubModelsToken))
         return Results.Ok(new { b.Title, Pitch = r.Text });
     });
 
-    app.MapGet("/api/v2/ask", async (string q, IChatClient ai) =>
-        (await ai.GetResponseAsync(q)).Text);
+    app.MapGet("/api/v2/ask", async (string q) =>
+        (await githubModelsChat.GetResponseAsync(q)).Text);
 }
 else
 {

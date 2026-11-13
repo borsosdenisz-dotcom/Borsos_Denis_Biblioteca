@@ -116,7 +116,7 @@ async Task Agent()
         if (string.IsNullOrWhiteSpace(question)) break;
 
         messages.Add(new(ChatRole.User, question));
-        var routedAnswer = await TryAnswerSemanticBookPriceAsync(question);
+        var routedAnswer = await TryAnswerBookPriceAsync(question);
         if (routedAnswer is not null)
         {
             messages.Add(new ChatMessage(ChatRole.Assistant, routedAnswer));
@@ -149,46 +149,76 @@ async Task Agent()
 }
 
 // llama3.2 poate confunda schema celui de-al doilea tool într-un lanț.
-// Pentru cazul precis „descriere semantică + preț”, orchestrăm explicit cele două apeluri MCP.
-async Task<string?> TryAnswerSemanticBookPriceAsync(string question)
+// Pentru întrebările despre preț orchestrăm explicit căutarea după titlu sau
+// descrierea semantică, urmată de get_book_details.
+async Task<string?> TryAnswerBookPriceAsync(string question)
 {
     var asksForPrice = question.Contains("cost", StringComparison.OrdinalIgnoreCase)
         || question.Contains("preț", StringComparison.OrdinalIgnoreCase)
         || question.Contains("pret", StringComparison.OrdinalIgnoreCase);
     var describesSubject = question.Contains("despre", StringComparison.OrdinalIgnoreCase)
         || question.Contains("caut", StringComparison.OrdinalIgnoreCase);
-    if (!asksForPrice || !describesSubject)
+    if (!asksForPrice)
         return null;
 
     try
     {
-        Console.WriteLine($"  [tool] search_documents(query={question}, source=carte, top=3)");
-        var search = await mcp.CallToolAsync("search_documents", new Dictionary<string, object?>
+        int bookId;
+        if (describesSubject)
         {
-            ["query"] = question,
-            ["source"] = "carte",
-            ["top"] = 3
-        });
-        if (search.IsError == true)
-            return null;
+            Console.WriteLine($"  [tool] search_documents(query={question}, source=carte, top=3)");
+            var search = await mcp.CallToolAsync("search_documents", new Dictionary<string, object?>
+            {
+                ["query"] = question,
+                ["source"] = "carte",
+                ["top"] = 3
+            });
+            if (search.IsError == true)
+                return null;
 
-        var searchJson = search.Content.OfType<TextContentBlock>().FirstOrDefault()?.Text;
-        if (string.IsNullOrWhiteSpace(searchJson))
-            return null;
+            var searchJson = search.Content.OfType<TextContentBlock>().FirstOrDefault()?.Text;
+            if (string.IsNullOrWhiteSpace(searchJson))
+                return null;
 
-        string? titleWithId;
-        using (var document = JsonDocument.Parse(searchJson))
-        {
+            using var document = JsonDocument.Parse(searchJson);
             if (document.RootElement.ValueKind != JsonValueKind.Array
                 || document.RootElement.GetArrayLength() == 0)
                 return null;
 
-            titleWithId = GetProperty(document.RootElement[0], "title").GetString();
+            var titleWithId = GetProperty(document.RootElement[0], "title").GetString();
+            var idMatch = Regex.Match(titleWithId ?? "", @"\(ID\s+(?<id>\d+)\)");
+            if (!idMatch.Success || !int.TryParse(idMatch.Groups["id"].Value, out bookId))
+                return null;
         }
+        else
+        {
+            var titleQuery = Regex.Replace(
+                    question,
+                    @"(?i)\b(cât|cat)\s+(costă|costa)\b",
+                    "")
+                .Trim(' ', '?', '.', '!', '"', '„', '”');
+            if (string.IsNullOrWhiteSpace(titleQuery))
+                return null;
 
-        var idMatch = Regex.Match(titleWithId ?? "", @"\(ID\s+(?<id>\d+)\)");
-        if (!idMatch.Success || !int.TryParse(idMatch.Groups["id"].Value, out var bookId))
-            return null;
+            Console.WriteLine($"  [tool] search_books(query={titleQuery})");
+            var search = await mcp.CallToolAsync("search_books", new Dictionary<string, object?>
+            {
+                ["query"] = titleQuery
+            });
+            if (search.IsError == true)
+                return null;
+
+            var searchJson = search.Content.OfType<TextContentBlock>().FirstOrDefault()?.Text;
+            if (string.IsNullOrWhiteSpace(searchJson))
+                return null;
+
+            using var document = JsonDocument.Parse(searchJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Array
+                || document.RootElement.GetArrayLength() == 0)
+                return null;
+
+            bookId = GetProperty(document.RootElement[0], "id").GetInt32();
+        }
 
         Console.WriteLine($"  [tool] get_book_details(bookId={bookId})");
         var details = await mcp.CallToolAsync("get_book_details", new Dictionary<string, object?>

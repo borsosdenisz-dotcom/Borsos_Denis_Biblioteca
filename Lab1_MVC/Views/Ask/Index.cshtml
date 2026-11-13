@@ -1,0 +1,62 @@
+@model AskViewModel
+
+@{
+    ViewData["Title"] = "Întreabă regulamentul";
+}
+
+<h1>Întreabă regulamentul</h1>
+<p class="text-muted">Răspunsul folosește exclusiv fragmente din regulamentul Bibliotecii FSEGA.</p>
+
+<form asp-action="Index" method="post" class="mb-4">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="Question" class="form-label"></label>
+        <textarea asp-for="Question" class="form-control" rows="3" autofocus></textarea>
+        <span asp-validation-for="Question" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-primary">Trimite întrebarea</button>
+</form>
+
+@if (Model.Answer is not null)
+{
+    <section class="card mb-4">
+        <div class="card-body">
+            <h2 class="h5 card-title">Răspuns</h2>
+            <p class="card-text" style="white-space: pre-wrap">@Model.Answer</p>
+            <p class="card-text text-muted mb-0">Timp de răspuns: @Model.Milliseconds ms</p>
+        </div>
+    </section>
+}
+
+@if (Model.Sources.Count > 0)
+{
+    <h2 class="h4">Surse utilizate</h2>
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered align-middle">
+            <thead>
+            <tr>
+                <th scope="col">Nr.</th>
+                <th scope="col">Titlul secțiunii</th>
+                <th scope="col">Scor</th>
+                <th scope="col">Text</th>
+            </tr>
+            </thead>
+            <tbody>
+            @for (var index = 0; index < Model.Sources.Count; index++)
+            {
+                var source = Model.Sources[index];
+                <tr>
+                    <th scope="row">[@(index + 1)]</th>
+                    <td>@source.Title</td>
+                    <td>@source.Score.ToString("F3")</td>
+                    <td>@source.Text</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}

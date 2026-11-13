@@ -559,3 +559,33 @@ Aplicația `Biblioteca.Agent` nu a putut fi executată în această sesiune: pol
 Dacă `SaveChangesAsync` reușește, iar Ollama eșuează la generarea embedding-ului, baza de date rămâne salvată, dar cererea MVC eșuează și indexul rămâne în starea anterioară: cartea nouă poate lipsi, versiunea editată poate fi veche, iar la Delete baza este deja fără carte înainte de ștergerea vectorului. Sincronizarea se recuperează prin reîncercarea `IndexBookAsync`/`RemoveBookAsync`; o repornire reconstruiește integral indexul din baza de date. În producție ar fi potrivit și un job persistent de retry/outbox.
 
 Build după A1: `dotnet build Lab1_MVC/Lab1_MVC.csproj --no-restore --no-dependencies` — **reușit, 0 erori**, cu 4 avertismente NU190x deja existente pentru dependențe tranzitive.
+
+### A2 · Pagina „Întreabă regulamentul” (RAG clasic)
+
+Am adăugat clientul `IChatClient` Ollama/`llama3.2`, modelul și controllerul MVC, pagina Bootstrap cu sursele și timpul, precum și linkul „Întreabă”. Fluxul este fix: retrieval în `regulament` cu top 3, prompt cu fragmente numerotate, un singur apel de chat și afișarea răspunsului. Clientul GitHub Models existent rămâne separat pentru endpoint-urile sale, astfel încât înregistrarea DI a paginii nu este ambiguă. Excepțiile Ollama sunt jurnalizate și produc un mesaj controlat în pagină.
+
+`llama3.2` a omis uneori marcajul de citare, deși promptul îl cerea explicit. Pagina verifică răspunsul și adaugă `[1]` atunci când nu există nicio citare; `[1]` este sursa principală din lista ordonată. Mesajul exact „Regulamentul nu precizează.” nu primește o citare artificială.
+
+Teste reale în pagina MVC (toate POST-urile au răspuns HTTP `200`):
+
+| Întrebare | Primul fragment | Scor | Timp | Răspuns |
+|---|---|---:|---:|---|
+| Câte cărți poate împrumuta un student la master? | `3\. Numărul de cărți împrumutate` | 0,762 | 2761 ms | „Un student la master poate avea cel mult 5 cărți. [1]” |
+| Pot lucra cu laptopul în sala de lectură? | `8\. Sala de lectură` | 0,800 | 497 ms | „Da, pot lucra cu laptopul în sala de lectură. Pot lucra cu laptopul în sala de lectură [1].” |
+| Care este programul bibliotecii în sesiune? | `9\. Programul bibliotecii` | 0,826 | 648 ms | „În sesiunea de examene, programul de luni până vineri se prelungește până la ora 22:00. [1]” |
+| Pot prelungi împrumutul? | `4\. Durata împrumutului și prelungirea` | 0,791 | 773 ms | „Da, pot prelungi împrumutul, dar doar o singură dată, cu încă 14 zile, conform articolului [1] din regulament.” |
+| Cât costă Baltagul? | `2\. Permisul de bibliotecă` | 0,428 | 360 ms | „Regulamentul nu precizează.” |
+
+Pagina RAG clasic este potrivită pentru întrebări al căror răspuns se află într-un corpus ales în avans, precum limitele de împrumut, programul și regulile sălii de lectură: caută mereu în document și arată fragmentele folosite. Agentul este potrivit pentru întrebări care cer alegerea și înlănțuirea unor surse diferite, mai ales date structurate curente din catalog.
+
+Comparația pentru preț a fost executată real în `Biblioteca.Agent`, opțiunea 2. Din cauza code page-ului consolei la stdin redirecționat am folosit parafraza ASCII echivalentă `Cat costa Baltagul?`. Urma și răspunsul au fost:
+
+```text
+[tool] search_books(query=Baltagul)
+[tool] get_book_details(bookId=1)
+Asistent: Cartea este „Baltagul” și costă 35 lei.
+```
+
+Diferența observată este cea așteptată: pagina a căutat exclusiv în regulament și nu a inventat prețul, în timp ce agentul a ales catalogul și detaliile cărții. Am extins ruta deterministă deja existentă pentru întrebările de preț, astfel încât întrebarea după titlu să folosească `search_books` înainte de `get_book_details`, nu un ID presupus de model.
+
+Build după A2: proiectele `Lab1_MVC` și `Biblioteca.Agent` — **reușit, 0 erori**. În aplicația web au rămas 7 avertismente deja cunoscute (NU190x, două nullable și analyzerul OllamaSharp blocat de WDAC); Agentul a avut 0 avertismente.
