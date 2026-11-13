@@ -12,6 +12,10 @@ public class AskController(
     IChatClient chat,
     ILogger<AskController> logger) : Controller
 {
+    // Scoruri măsurate cu embeddinggemma: laptop=0,800, Visual Studio=0,335.
+    // Pragul este mijlocul 0,5675, rotunjit la două zecimale.
+    private const double MinScore = 0.57;
+
     [HttpGet]
     public IActionResult Index() => View(new AskViewModel());
 
@@ -29,6 +33,19 @@ public class AskController(
         try
         {
             vm.Sources = await index.SearchAsync(vm.Question, 3, "regulament", ct);
+            vm.Sources = vm.Sources
+                .Where(source => source.Score >= MinScore)
+                .ToList();
+
+            if (vm.Sources.Count == 0)
+            {
+                vm.Answer = "Regulamentul nu precizează. Întrebați personalul bibliotecii.";
+                logger.LogInformation(
+                    "RAG clasic: niciun fragment peste pragul {MinScore}; llama3.2 nu este apelat.",
+                    MinScore);
+                return View(vm);
+            }
+
             var fragments = string.Join(
                 "\n\n",
                 vm.Sources.Select((source, position) =>
@@ -50,6 +67,9 @@ public class AskController(
                     $"Fragmente:\n{fragments}\n\nÎntrebare: {vm.Question}")
             ];
 
+            logger.LogInformation(
+                "RAG clasic: {Count} fragmente peste prag; se apelează llama3.2 o singură dată.",
+                vm.Sources.Count);
             var response = await chat.GetResponseAsync(messages, cancellationToken: ct);
             vm.Answer = EnsureCitation(response.Text, vm.Sources.Count);
         }

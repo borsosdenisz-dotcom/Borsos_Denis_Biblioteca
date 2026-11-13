@@ -589,3 +589,30 @@ Asistent: Cartea este „Baltagul” și costă 35 lei.
 Diferența observată este cea așteptată: pagina a căutat exclusiv în regulament și nu a inventat prețul, în timp ce agentul a ales catalogul și detaliile cărții. Am extins ruta deterministă deja existentă pentru întrebările de preț, astfel încât întrebarea după titlu să folosească `search_books` înainte de `get_book_details`, nu un ID presupus de model.
 
 Build după A2: proiectele `Lab1_MVC` și `Biblioteca.Agent` — **reușit, 0 erori**. În aplicația web au rămas 7 avertismente deja cunoscute (NU190x, două nullable și analyzerul OllamaSharp blocat de WDAC); Agentul a avut 0 avertismente.
+
+### A3 · Prag de scor și răspuns fără model
+
+Măsurarea inițială, înainte de filtrare:
+
+| Întrebare | Primul fragment | Scor | Răspuns | Timp |
+|---|---|---:|---|---:|
+| Pot lucra cu laptopul în sala de lectură? | `8\. Sala de lectură` | 0,800 | „Da, pot lucra cu laptopul în sala de lectură [1].” | 2755 ms |
+| Cum se instalează Visual Studio? | `2\. Permisul de bibliotecă` | 0,335 | „Regulamentul nu precizează cum se instalează Visual Studio. [1]” | 398 ms |
+
+Scorurile permit o separare largă. Am ales `MinScore = 0.57`: mijlocul aritmetic este `(0,800 + 0,335) / 2 = 0,5675`, rotunjit la două zecimale. Astfel pragul provine din măsurători și ține cont de scorul hibrid semantic/lexical folosit de proiect, nu doar de similaritatea vectorială.
+
+Rezultate după filtrare:
+
+| Întrebare | Surse păstrate | Răspuns | Timp |
+|---|---:|---|---:|
+| Pot lucra cu laptopul în sala de lectură? | 1: `8\. Sala de lectură`, scor 0,800 | „Da, pot folosi laptopurile în sala de lectură. [1]” | 2693 ms |
+| Cum se instalează Visual Studio? | 0 | „Regulamentul nu precizează. Întrebați personalul bibliotecii.” | 31 ms |
+
+Pentru a verifica lipsa apelului de chat, controllerul scrie câte un log înaintea ramurii de generare. În execuția reală serverul a afișat:
+
+```text
+RAG clasic: 1 fragmente peste prag; se apelează llama3.2 o singură dată.
+RAG clasic: niciun fragment peste pragul 0.57; llama3.2 nu este apelat.
+```
+
+Diferența de timp, 2693 ms față de 31 ms, este compatibilă cu eliminarea generării; fallback-ul face doar embedding-ul interogării, căutarea și filtrarea. Build după A3: **reușit, 0 erori** (aceleași 7 avertismente preexistente descrise la A2).
