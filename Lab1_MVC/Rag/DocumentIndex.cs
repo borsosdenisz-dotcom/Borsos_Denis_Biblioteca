@@ -32,33 +32,48 @@ public class DocumentIndex
 
     public async Task BuildAsync(
         LibraryContext db,
-        string regulamentPath,
+        string docsPath,
         string catalogPath,
         CancellationToken ct = default)
     {
-        if (!File.Exists(regulamentPath))
-            throw new FileNotFoundException("Regulamentul nu a fost găsit.", regulamentPath);
+        if (!Directory.Exists(docsPath))
+            throw new DirectoryNotFoundException($"Directorul documentelor nu a fost găsit: {docsPath}");
         if (!File.Exists(catalogPath))
             throw new FileNotFoundException("Catalogul de rezervă nu a fost găsit.", catalogPath);
 
         await _collection.EnsureCollectionExistsAsync(ct);
         _documents.Clear();
 
-        var parts = Chunker.Split(
-            await File.ReadAllTextAsync(regulamentPath, ct),
-            ChunkMode);
-        for (var i = 0; i < parts.Count; i++)
+        var documentParts = 0;
+        var markdownFiles = Directory.GetFiles(docsPath, "*.md", SearchOption.TopDirectoryOnly)
+            .OrderBy(path => Path.GetFileName(path), StringComparer.Ordinal)
+            .ToArray();
+        foreach (var markdownPath in markdownFiles)
         {
-            var chunk = new DocumentChunk
+            var source = Path.GetFileNameWithoutExtension(markdownPath);
+            var parts = Chunker.Split(
+                await File.ReadAllTextAsync(markdownPath, ct),
+                ChunkMode);
+            for (var i = 0; i < parts.Count; i++)
             {
-                Id = $"regulament-{i + 1:00}",
-                Source = "regulament",
-                Title = parts[i].Title,
-                Text = parts[i].Text,
-                Embedding = parts[i].Text
-            };
-            await _collection.UpsertAsync(chunk, ct);
-            _documents.Add(chunk);
+                var chunk = new DocumentChunk
+                {
+                    Id = $"{source}-{i + 1:00}",
+                    Source = source,
+                    Title = parts[i].Title,
+                    Text = parts[i].Text,
+                    Embedding = parts[i].Text
+                };
+                await _collection.UpsertAsync(chunk, ct);
+                _documents.Add(chunk);
+            }
+
+            documentParts += parts.Count;
+            _log.LogInformation(
+                "RAG document {Source}: {Parts} fragmente ({Mode}).",
+                source,
+                parts.Count,
+                ChunkMode);
         }
 
         // Indexam cartile care au descriere. Valorile null din baza veche pot fi
@@ -102,10 +117,10 @@ public class DocumentIndex
 
         Count = _documents.Count;
         _log.LogInformation(
-            "RAG: {Parts} fragmente din regulament ({Mode}) + {Books} carti cu descriere indexate; {Completed} descrieri completate doar in memorie din CSV.",
-            parts.Count,
-            ChunkMode,
-            _documents.Count - parts.Count,
+            "RAG total: {Parts} fragmente din {Documents} documente + {Books} carti cu descriere indexate; {Completed} descrieri completate doar in memorie din CSV.",
+            documentParts,
+            markdownFiles.Length,
+            _documents.Count - documentParts,
             descriptionsCompleted);
     }
 

@@ -8,6 +8,9 @@ public class AskViewModel
     [Display(Name = "Întrebarea")]
     public string Question { get; set; } = "";
 
+    [Display(Name = "Documentul")]
+    public string Source { get; set; } = "regulament";
+
     public string? Answer { get; set; }
 
     public List<DocumentHit> Sources { get; set; } = [];

@@ -653,3 +653,46 @@ Rezultate complete, copiate din cele două execuții pe același set (`loc = —
 Rerangarea este 50% semantică și 50% lexicală, iar componenta lexicală a rămas identică între experimente. Diferențele provin deci din vecinătățile generate de modelul de embeddings. Pe acest corpus românesc, `embeddinggemma` a păstrat mai bine atât parafrazele românești, cât și două dintre interogările în engleză către secțiuni românești. Aș păstra `embeddinggemma`, deoarece are recall mai mare la toate cele trei valori k și poziții mai bune pentru întrebările operaționale.
 
 Pentru `nomic-embed-text` serverul a fost repornit cu override temporar și indexul a fost reconstruit integral; vectorii documentelor și interogărilor au folosit același model. La final override-ul a fost eliminat și serverul a fost repornit cu valoarea versionată `Ollama:EmbeddingModel = embeddinggemma`. Build după S1: `dotnet build Lab1_MVC.sln --no-restore` — **reușit, 0 erori și 8 avertismente preexistente**; proiectul `Biblioteca.Agent` separat a avut 0 avertismente.
+
+### S2 · Documentul `concurs-recenzii` (varianta A2)
+
+Am creat regulamentul fictiv cu nota obligatorie și 12 secțiuni. Regulile sunt verificabile: înscrieri 1–31 martie 2027, trimitere până la 30 aprilie ora 18:00, maximum 2 recenzii a câte 800–1.200 de cuvinte, punctaj total 100, prag de premiere 60 și vouchere de 500/350/200 lei. Cele șase criterii însumează exact 100 de puncte. Calendarul final lasă timp contestațiilor: rezultate preliminare 20 mai, rezultate finale 31 mai, premiere 4 iunie și publicarea recenziilor până la 10 iunie.
+
+`BuildAsync` enumeră automat `Docs/*.md`, folosește numele fișierului drept `Source` și chei de forma `<sursă>-01`. La pornirea reală au fost afișate:
+
+```text
+RAG document concurs-recenzii: 12 fragmente (sectiuni).
+RAG document regulament: 13 fragmente (sectiuni).
+RAG total: 25 fragmente din 2 documente + 40 carti cu descriere indexate; 2 descrieri completate doar in memorie din CSV.
+```
+
+Descrierea MCP și schema parametrului `source` prezintă valorile exacte `regulament`, `concurs-recenzii`, `carte` și `toate`. Tool-urile anterioare au rămas disponibile; lista reală din Agent a inclus în continuare `books_by_year`, `search_books`, `get_book_details`, `recommend_books`, `top_books_by_price` și `books_by_genre`.
+
+Teste în pagina MVC, cu selectorul `concurs-recenzii`:
+
+| Întrebare | Fragment / scor | Timp | Răspuns |
+|---|---|---:|---|
+| Câte recenzii poate trimite un participant? | `5. Numărul maxim de recenzii` / 0,735 | 2755 ms | „Un participant poate trimite cel mult 2 recenzii. [1]” |
+| Ce voucher de carte primește câștigătorul premiului I? | `10. Premiile` / 0,751 | 538 ms | „Câștigătorul premiului I primește un voucher de carte de 500 de lei. [1]” |
+
+Aceleași două întrebări au fost puse în Agent cu echivalente ASCII, din cauza code page-ului stdin redirecționat. Căutarea brută a întors `5. Numărul maxim de recenzii` pe locul 1 cu scor 0,734 și `10. Premiile` pe locul 1 cu scor 0,742. Urma și răspunsurile reale din opțiunea 2:
+
+```text
+[tool] search_documents(query=Cate recenzii poate trimite un participant?, source=concurs-recenzii)
+Asistent: Un participant poate trimite cel mult 2 recenzii, pentru 2 titluri diferite. Pentru fiecare titlu este acceptat o singură versiune finală, retrimiterea este permisă înainte de termenul din 30 aprilie 2027, ora 18:00, și înlocuiește integral versiunea anterioară.
+
+[tool] search_documents(source=concurs-recenzii, query=Voucher de carte castigator premiului I)
+Asistent: Castigatorul premiului I primește un voucher de carte de 500 de lei.
+```
+
+Pragul A3 de 0,57 nu a fost schimbat pentru `regulament`. Pentru documentul nou, întrebarea relevantă „Care sunt valorile voucherelor pentru primele trei premii?” a avut scor 0,557, iar „Cum se instalează Visual Studio?” a avut 0,352. Am definit pentru `concurs-recenzii` pragul măsurat 0,50, aflat între ele. După schimbare, prima întrebare a primit cele trei valori corecte din `10. Premiile` cu citarea [1], iar întrebarea Visual Studio a păstrat fallback-ul fără model în 32 ms.
+
+Build după S2: `Lab1_MVC` — **reușit, 0 erori și 7 avertismente preexistente**; `Biblioteca.Agent` — **reușit, 0 erori și 0 avertismente**.
+
+### Folosirea AI (Laboratorul 10)
+
+Instrument utilizat: **Codex**. L-am folosit pentru auditul cerințelor și Git, implementarea celor cinci etape, generarea și verificarea documentului fictiv, pregătirea setului de evaluare, rularea testelor CRUD/MVC/MCP/Agent și compararea celor două modele de embeddings. Un exemplu real din cerere este: „Transformă pagina în «Întreabă documentele Bibliotecii»” și adaugă selectorul pentru regulament și concurs.
+
+Textul fișierului `Docs/concurs-recenzii.md` a fost realizat cu ajutorul AI. La verificarea manuală am găsit o eroare reală în prima versiune: festivitatea din 25 mai putea avea loc înainte ca o contestație depusă după 20 mai să fie soluționată în termenul maxim. Am separat rezultatele preliminare de cele finale și am mutat premierea la 4 iunie și publicarea la 10 iunie. Am verificat și suma criteriilor (100), limitele, datele și ordinea termenelor.
+
+O altă sugestie incompletă observată în test a fost promptul care cerea citări: `llama3.2` a răspuns corect, dar a omis `[1]`. Problema a fost vizibilă direct în răspunsurile reale. Am păstrat cerința în prompt și am adăugat validarea deterministă `EnsureCitation`, care atașează `[1]` când modelul nu oferă nicio citare, fără să modifice mesajele exacte de fallback.

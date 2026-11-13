@@ -139,7 +139,7 @@ using (var scope = app.Services.CreateScope())
 
     var index = scope.ServiceProvider.GetRequiredService<DocumentIndex>();
     await index.BuildAsync(db,
-        Path.Combine(app.Environment.ContentRootPath, "Docs", "regulament.md"),
+        Path.Combine(app.Environment.ContentRootPath, "Docs"),
         Path.Combine(AppContext.BaseDirectory, "Data", "books.csv"));
 }
 

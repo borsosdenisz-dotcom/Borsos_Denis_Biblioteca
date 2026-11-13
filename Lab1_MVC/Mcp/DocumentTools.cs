@@ -9,14 +9,16 @@ namespace Lab1_MVC.Mcp;
 public class DocumentTools
 {
     [McpServerTool(Name = "search_documents", ReadOnly = true, Destructive = false, OpenWorld = false)]
-    [Description("Caută după sens în regulamentul Bibliotecii și în descrierile cărților. " +
-                 "Folosește-l pentru întrebări despre reguli (împrumut, termene, penalități, program, sala de lectură) " +
-                 "și când cititorul descrie subiectul unei cărți, nu titlul ei. " +
+    [Description("Caută după sens în regulamentul Bibliotecii, regulamentul fictiv al concursului anual de recenzii " +
+                 "și descrierile catalogului de cărți. Folosește source='regulament' pentru împrumut, termene, " +
+                 "penalități, program și sala de lectură; source='concurs-recenzii' pentru eligibilitate, calendar, " +
+                 "format, punctaj, premii și contestații; source='carte' când cititorul descrie subiectul unei cărți. " +
                  "Întoarce fragmentele cele mai apropiate de întrebare, cu sursa, titlul și scorul de relevanță (0–1).")]
     public static Task<List<DocumentHit>> SearchDocuments(
         DocumentIndex index,
         [Description("Întrebarea sau descrierea, în cuvintele cititorului.")] string query,
-        [Description("Unde caută: 'regulament', 'carte' sau 'ambele'. Omite argumentul pentru ambele surse.")] string? source = null,
+        [Description("Sursa exactă: 'regulament' = regulamentul bibliotecii; 'concurs-recenzii' = concursul anual fictiv; " +
+                     "'carte' = catalogul de cărți; 'toate' = toate sursele. Omite argumentul pentru toate sursele.")] string? source = null,
         [Description("Câte fragmente (1–8). Implicit 3.")] int top = 3,
         CancellationToken ct = default)
     {
@@ -26,10 +28,10 @@ public class DocumentTools
         var requestedSource = source?.Trim().ToLowerInvariant();
         var normalizedSource = requestedSource switch
         {
-            null or "" or "ambele" or "both" => null,
-            "regulament" or "carte" => requestedSource,
+            null or "" or "toate" or "ambele" or "both" => null,
+            "regulament" or "concurs-recenzii" or "carte" => requestedSource,
             _ => throw new ArgumentException(
-                "Sursa trebuie să fie 'regulament', 'carte' sau 'ambele'.",
+                "Sursa trebuie să fie 'regulament', 'concurs-recenzii', 'carte' sau 'toate'.",
                 nameof(source))
         };
         return index.SearchAsync(query, Math.Clamp(top, 1, 8), normalizedSource, ct);

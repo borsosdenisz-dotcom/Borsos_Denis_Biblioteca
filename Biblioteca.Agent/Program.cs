@@ -102,10 +102,11 @@ async Task Agent()
             "Pentru orice informație despre cărți, cititori sau recomandări folosește tool-urile. " +
             "Pentru cărți publicate într-un an sau într-un interval de ani folosește books_by_year. " +
             "Pentru regulament și program folosește search_documents cu source='regulament'. " +
+            "Pentru concursul anual de recenzii folosește search_documents cu source='concurs-recenzii'. " +
             "Pentru o carte descrisă prin subiect folosește search_documents cu source='carte', apoi get_book_details pentru preț. " +
             "La reguli, include în răspuns limitele, durata și condițiile relevante din fragment. " +
             "Pentru get_book_details trimite exclusiv bookId numeric extras din titlul rezultatului, de forma '(ID 1)'. " +
-            "La search_documents, source poate fi doar 'regulament' sau 'carte'; pentru ambele surse omite argumentul. " +
+            "La search_documents, source poate fi 'regulament', 'concurs-recenzii' sau 'carte'; pentru toate sursele omite argumentul. " +
             "Nu inventa titluri, prețuri sau autori: dacă tool-urile nu întorc informația, spune că nu o ai.")
     ];
     var options = new ChatOptions { Tools = [.. tools] };
@@ -255,7 +256,7 @@ async Task CautareDocumente()
         var query = Console.ReadLine();
         if (string.IsNullOrWhiteSpace(query)) break;
 
-        Console.Write("Sursa (regulament/carte/Enter = ambele): ");
+        Console.Write("Sursa (regulament/concurs-recenzii/carte/Enter = toate): ");
         var source = Console.ReadLine();
         Console.Write("Top (1-8, implicit 3): ");
         var topText = Console.ReadLine();
